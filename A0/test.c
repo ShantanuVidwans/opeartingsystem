@@ -4,16 +4,25 @@
 #include "./mypthread.h"
 #include "./mypthread.c"
 
+
+int fib(int i){
+    if (i == 0){
+        return 0;
+    }
+    if (i == 1){
+        return 1;
+    }
+    
+    return fib(i-1) + fib(i-2);
+
+}
+
 void* pow2(void* size){
     //printf("I MADE IT!!!!\n");
     //printf("x = %d\n", *(int*)size);
-    int thing = 1;
-    double thing2 = 2.0;
-    double thing3 = 0.0;
-    for(int i = 0; i < *(int*)size; i++){
-        thing = thing * 2;
-    }
-    *(int*)size = thing;
+    int i = *(int*)size;
+    int j = fib(i);
+    *(int*)size = j;
     return size;
 }
 
@@ -24,11 +33,11 @@ int main(int argc, char **argv) {
 
     int variable;
     int *ptr = &variable;
-    *ptr = 10;
+    *ptr = 1;
 
     int variable2;
     int *ptr2 = &variable2;
-    *ptr2 = 20;
+    *ptr2 = 10;
 
     int variable3;
     int *ptr3 = &variable3;
