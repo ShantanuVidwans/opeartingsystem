@@ -57,6 +57,7 @@ static void schedule(int signum){
 		if(signum == SIGALRM){
 			//printf("Your ran too long %u \n", MTH->current->tcb->tid);
 			enqueue(MTH->current, MTH->ready);
+			printQueue(MTH->ready);
 		}
 		if(signum == YIELDED){
 			//printf("I am Yielding %u \n", MTH->current->tcb->tid);
@@ -68,12 +69,12 @@ static void schedule(int signum){
 		if(signum == BLOCKED){
 			//printf("exiting thread %u \n",MTH->current->tcb->tid);
 			enqueue(MTH->current,MTH->blocked);
-			printQueue(MTH->blocked);
+			//printQueue(MTH->blocked);
 		}
 		if(signum == TERMINATED){
 			//printf("exiting thread %u \n",MTH->current->tcb->tid);
 			enqueue(MTH->current,MTH->terminated);
-			printQueue(MTH->terminated);
+			//printQueue(MTH->terminated);
 		}
 
 		//printf("current scheduler state { \n");
@@ -116,7 +117,7 @@ static void schedule(int signum){
 }
 
 void disableTimer() {
-	if(sigprocmask(SIG_BLOCK,&act_timer.sa_mask,&act_timer.sa_mask)==-1) // SIGRTMIN signal is unmasked
+	if(sigprocmask(SIG_BLOCK,&act_timer.sa_mask,&act_timer.sa_mask)==-1) // SIGNAL is blocked
  	{
   		perror("sigprocmask");
  	}
@@ -124,6 +125,7 @@ void disableTimer() {
 	timer.it_value.tv_sec = 0;
  	timer.it_value.tv_usec = 0;
 	if (setitimer(ITIMER_REAL, &timer, NULL) == -1) {
+		perror("Unable to disable time in for MTH\n");
     	exit(1);
     }
 }
@@ -139,14 +141,14 @@ void setHandler(){
 
 
 void setTimer(long int time_milli){
-	if(sigprocmask(SIG_UNBLOCK,&act_timer.sa_mask,&act_timer.sa_mask)==-1) // SIGRTMIN signal is unmasked
+	if(sigprocmask(SIG_UNBLOCK,&act_timer.sa_mask,&act_timer.sa_mask)==-1) // SIGNAL is unblocked
  	{
   		perror("sigprocmask");
  	}
     timer.it_value.tv_sec = 0;
  	timer.it_value.tv_usec = time_milli;
     if (setitimer(ITIMER_REAL, &timer, NULL) == -1) {
-    	//printf("Unable to set time in for MTH\n");
+    	perror("Unable to set time in for MTH\n");
     	exit(1);
         }
 }
@@ -185,7 +187,7 @@ int startScheduler() {
 		//enqueue(main_node, MTH->ready);
 		enqueue(MTH->s_tcb_node, MTH->ready);
 		//printf("First Ready Queue : ");
-		printQueue(MTH->ready);
+		//printQueue(MTH->ready);
 		isSchedulerNotStarted = 0;
 		MTH->current = main_node;
 		return 1;

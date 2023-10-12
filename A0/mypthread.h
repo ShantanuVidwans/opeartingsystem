@@ -342,12 +342,10 @@ int swapQueues(tcb_queue* source, tcb_queue* destination, mypthread_t tid){
 #define pthread_mutex_lock mypthread_mutex_lock
 #define pthread_mutex_unlock mypthread_mutex_unlock
 #define pthread_mutex_destroy mypthread_mutex_destroy
-#define HIGH_EXEC_TIMEOUT 250
-#define MEDIUM_EXEC_TIMEOUT 500
-#define LOW_EXEC_TIMEOUT 750
+#define HIGH_EXEC_TIMEOUT 30
+#define MEDIUM_EXEC_TIMEOUT 60
+#define LOW_EXEC_TIMEOUT 90
 #define T_STACK_SIZE 1048576
-#define MAINTENANCE_THRESHOLD 2
-#define DISABLE_TIME 0
 extern unsigned int s_tid;  //scheduler id
 extern TH* MTH; // scheduler
 extern MH* MQ;
