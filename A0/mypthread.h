@@ -34,6 +34,7 @@ typedef enum t_state{
   RUNNING,
   WAITING,
   YIELDED,
+  YIELDED_FOR_MUTEX_WAIT,
   BLOCKED,
   TERMINATED,
 }t_state;

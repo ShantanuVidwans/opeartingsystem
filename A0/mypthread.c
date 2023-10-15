@@ -48,7 +48,6 @@ void* executeThread() {
 
 
 static void schedule(int signum){
-	
 	if (__sync_add_and_fetch(&mode_bit,1) == 1) {
 		disableTimer();
 		//printf("Entering Schedule Event Handler %d\n", signum);
@@ -65,6 +64,13 @@ static void schedule(int signum){
 			}
 			load_balance = 0;
 		}
+        if(signum == YIELDED_FOR_MUTEX_WAIT){
+            printf("I am Yielding for mutex wait %u \n", MTH->current->tcb->tid);
+            if(load_balance == 0) {
+                enqueue(MTH->current, MTH->mutexWaitQueue);
+            }
+            load_balance = 0;
+        }
 		if(signum == BLOCKED){
 			//printf("exiting thread %u \n",MTH->current->tcb->tid);
 			enqueue(MTH->current,MTH->blocked);
@@ -243,6 +249,15 @@ int mypthread_yield(){
 	}
 };
 
+int mypthread_yield_for_mutex(){
+    if (__sync_add_and_fetch(&mode_bit,1) == 1) {
+        disableTimer();
+        if (__sync_add_and_fetch(&mode_bit,-1) == 0) {
+            schedule(YIELDED_FOR_MUTEX_WAIT);
+        }
+    }
+};
+
 void mypthread_exit(void *value_ptr)
 {
 	if (__sync_add_and_fetch(&mode_bit,1) == 1) {
@@ -379,12 +394,22 @@ int mypthread_mutex_init(mypthread_mutex_t *mutex, const pthread_mutexattr_t *mu
 int mypthread_mutex_lock(mypthread_mutex_t *mutex){
 //    return 0;
     disableTimer();
+    if(mutex->guard == 0 && !isOnHoldQueueById(mutex, MTH->current->tcb->tid)){
+        mutex->guard = 1;
+        mutex->pid = MTH->current->tcb->tid;
+        return 0;
+    }
+    if(mutex->guard == 0 && isOnHoldQueueById(mutex, MTH->current->tcb->tid) && mutex->hold_queue->mypthread_t == MTH->current->tcb->tid){
+        lockMutexWithNextWaitingThread(mutex);
+    }
+
     if(mutex->guard == 1 && mutex->pid == MTH->current->tcb->tid){
         return 0;
     }
-//    printf("\nIs on hold? :%d\n", isOnHoldQueueById(mutex, MTH->current->tcb->tid));
+    printf("\nIs on hold? :%d\n", isOnHoldQueueById(mutex, MTH->current->tcb->tid));
     if(!isOnHoldQueueById(mutex, MTH->current->tcb->tid)){
         addToMutexHoldQueue(mutex, MTH->current->tcb->tid);
+//        mypthread_yield();
     }
 
 	return 0;
@@ -470,6 +495,20 @@ int isOnHoldQueueById(mypthread_mutex_t *mutex, mypthread_t id){
     }
 	return 0;
 }
+
+int isOnHoldOnAnyMutex(mypthread_t id){
+    mutex_node *currMutex = mutexHandler->mutexList;
+    while(currMutex != NULL){
+        mutex_hold_node *currHold = currMutex->mutex->hold_queue;
+        while(currHold != NULL){
+            if(currHold->mypthread_t == id) return 1;
+            currHold = currHold->next;
+        }
+        currMutex = currMutex->next;
+    }
+    return 0;
+}
+
 
 // Is mutes exist then return it, if not return NULL
 mypthread_mutex_t * getMutexIfExists(mutex_node *mutexList, mypthread_mutex_t *mutex){
