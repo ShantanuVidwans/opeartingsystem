@@ -82,9 +82,10 @@ typedef struct _MUTEXHOLDQUEUE mutex_hold_node;
 
 void initializeMutexQ(MH*);
 void addToMutexList(MH *, mypthread_mutex_t *);
-void addToMutexHoldQueue(mutex_hold_node *, mypthread_t);
+void addToMutexHoldQueue(mypthread_mutex_t *, mypthread_t);
 void lockMutex(MH *, mypthread_mutex_t *, mypthread_t);
-void destroyMutex(MH *, mypthread_mutex_t *);
+void destroyMutex(mypthread_mutex_t *);
+int isOnHoldQueueById(mypthread_mutex_t *, int);
 mypthread_mutex_t * getMutexIfExists(mutex_node *, mypthread_mutex_t *);
 int testMutexQ();
 
