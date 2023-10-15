@@ -346,9 +346,10 @@ void sched_RR() {
 
 int mypthread_mutex_init(mypthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr)
 {
+//    return 0;
 	mutex->flag = 0;
 	mutex->guard = 0;
-	mutex->hold_queue = (mutex_hold_node *)malloc(sizeof(mutex_hold_node));
+	mutex->hold_queue = NULL;
 	mutex->pid = -1;
 
 
@@ -357,6 +358,7 @@ int mypthread_mutex_init(mypthread_mutex_t *mutex, const pthread_mutexattr_t *mu
 		mutexHandler = (MH*) malloc(sizeof(MH));
 		isMutexQNotAllocated = 0;
 	}
+
 	if(mutexHandler->mutex_size == 0){
 		mutexHandler->mutexList = (mutex_node *)malloc(sizeof(mutex_node));
 		mutexHandler->mutex_size = 1;
@@ -365,74 +367,101 @@ int mypthread_mutex_init(mypthread_mutex_t *mutex, const pthread_mutexattr_t *mu
 		return 0;
 	}
 
-
 	mutex_node *newMutexNode = (mutex_node *)malloc(sizeof(mutex_node *));
+    mutex_node *curr = mutexHandler->mutexList;
+    while(curr->next != NULL){
+        curr = curr->next;
+    }
     newMutexNode->mutex = mutex;
-    newMutexNode->next = mutexHandler->mutexList;
-    mutexHandler->mutexList = newMutexNode;
+    newMutexNode->next = NULL;
+    curr->next = newMutexNode;
     mutexHandler->mutex_size++;
 	return 0;
-};
+}
 
 /* Aquire a mutex (lock) */
 int mypthread_mutex_lock(mypthread_mutex_t *mutex){
-	// return 0;
-	// printf("%d", &mutex);
-	if(mutex->guard == 0){
-		mutex->pid = MTH->current->tcb->tid;
-		mutex->guard = 1;
-		return 0;
-	}
-	if(mutex->guard == 1 && mutex->pid == MTH->current->tcb->tid){
-		return 0;
-	}
-	printf("\nIs on hold? :%d\n", isOnHoldQueueById(mutex, MTH->current->tcb->tid));
-	if(!isOnHoldQueueById(mutex, MTH->current->tcb->tid)){
-		addToMutexHoldQueue(mutex, MTH->current->tcb->tid);
-	}
+//    return 0;
+    disableTimer();
+    if(mutex->guard == 1 && mutex->pid == MTH->current->tcb->tid){
+        return 0;
+    }
+//    printf("\nIs on hold? :%d\n", isOnHoldQueueById(mutex, MTH->current->tcb->tid));
+    if(!isOnHoldQueueById(mutex, MTH->current->tcb->tid)){
+        addToMutexHoldQueue(mutex, MTH->current->tcb->tid);
+    }
+
 	return 0;
 }
 
 /* release a mutex (unlock) */
 int mypthread_mutex_unlock(mypthread_mutex_t *mutex){
-	return 0;
-	mutex->guard = 0;
+//    return 0;
+    if(mutex->guard == 1 && mutex->pid == MTH->current->tcb->tid){
+        mutex->pid = -1;
+        mutex->guard = 0;
+    }
+//    Remove from hold queue if on it
+    if(isOnHoldQueueById(mutex, MTH->current->tcb->tid)){
+        removeFromMutexHoldQueue(mutex, MTH->current->tcb->tid);
+    }
 }
 
 /* destroy a mutex */
 int mypthread_mutex_destroy(mypthread_mutex_t *mutex){
+//    return 0;
 	// printf("Yo");
 	// return 0;
 	destroyMutex(mutex);
 }
 
 void addToMutexHoldQueue(mypthread_mutex_t *mutex, mypthread_t pid){
-//   if(!mutex->hold_queue){
-// 	printf("No");
-//     mutex->hold_queue = (mutex_hold_node *)malloc(sizeof(mutex_hold_node));
-//     mutex->hold_queue->next = NULL;
-//     mutex->hold_queue->mypthread_t = pid;
-//     return;
-//   }
-//   mutex_hold_node *temp = queue;
-// //   printf("\n%d", queue->mypthread_t);
-//   while(temp->next){
-//     temp = temp->next;
-//   }
-//   temp->next = (mutex_hold_node *)malloc(sizeof(mutex_hold_node));
-//   temp->next->next = NULL;
-//   temp->next->mypthread_t = pid;
+    mutex_hold_node *curr = mutex->hold_queue;
+    if(curr == NULL){
+        mutex->hold_queue = (mutex_hold_node *)malloc(sizeof(mutex_hold_node));
+        mutex->hold_queue->next = NULL;
+        mutex->hold_queue->mypthread_t = pid;
+        return;
+    }
+    while(curr->next != NULL){
+        curr = curr->next;
+    }
+    curr->next = (mutex_hold_node *)malloc(sizeof(mutex_hold_node));
+    mutex->hold_queue->next = NULL;
+    mutex->hold_queue->mypthread_t = pid;
 }
 
-int isOnHoldQueueById(mypthread_mutex_t *mutex, int id){
-	if(mutex->hold_queue->mypthread_t == -1){
-		return 0;
-	}
-	mutex_hold_node *curr = mutex->hold_queue;
-	while(curr->next){
-		if(curr->mypthread_t == id) return 1;
-		curr = curr->next;
-	}
+void removeFromMutexHoldQueue(mypthread_mutex_t *mutex, mypthread_t pid){
+    mutex_hold_node *curr = mutex->hold_queue;
+    if(curr == NULL){
+        return;
+    }
+    if(curr->next == NULL && curr->mypthread_t == pid){
+        free(curr);
+        mutex->hold_queue = NULL;
+        return;
+    }
+    mutex_hold_node *prev;
+    while(curr->next != NULL){
+        prev = curr;
+        curr = curr->next;
+        if(curr->mypthread_t == pid){
+            prev->next = curr->next;
+        }
+        free(curr);
+    }
+}
+
+int isOnHoldQueueById(mypthread_mutex_t *mutex, mypthread_t id){
+    mutex_hold_node *curr = mutex->hold_queue;
+    if(curr == NULL){
+        return 0;
+    }
+
+    while(curr != NULL){
+        if(curr->mypthread_t == id) return 1;
+        curr = curr->next;
+    }
 	return 0;
 }
 

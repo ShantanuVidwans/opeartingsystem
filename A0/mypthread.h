@@ -85,8 +85,9 @@ void addToMutexList(MH *, mypthread_mutex_t *);
 void addToMutexHoldQueue(mypthread_mutex_t *, mypthread_t);
 void lockMutex(MH *, mypthread_mutex_t *, mypthread_t);
 void destroyMutex(mypthread_mutex_t *);
-int isOnHoldQueueById(mypthread_mutex_t *, int);
+int isOnHoldQueueById(mypthread_mutex_t *, mypthread_t);
 mypthread_mutex_t * getMutexIfExists(mutex_node *, mypthread_mutex_t *);
+void removeFromMutexHoldQueue(mypthread_mutex_t *, mypthread_t);
 int testMutexQ();
 
 typedef struct _mypthread_mutex_t
@@ -113,7 +114,7 @@ typedef struct _MutexHandler {
 
 // Queue of all the requests made to the mutex
 typedef struct _MUTEXHOLDQUEUE{
-  int mypthread_t;
+  mypthread_t mypthread_t;
   mutex_hold_node *next;
 
 } mutex_hold_node;
