@@ -88,6 +88,9 @@ void destroyMutex(mypthread_mutex_t *);
 int isOnHoldQueueById(mypthread_mutex_t *, mypthread_t);
 mypthread_mutex_t * getMutexIfExists(mutex_node *, mypthread_mutex_t *);
 void removeFromMutexHoldQueue(mypthread_mutex_t *, mypthread_t);
+void lockMutexWithNextWaitingThread(mypthread_mutex_t *);
+
+
 int testMutexQ();
 
 typedef struct _mypthread_mutex_t
@@ -128,6 +131,7 @@ typedef struct _Scheduler{
    struct _TCBQUEUE* medium;
    struct _TCBQUEUE* low;
    struct _TCBQUEUE* ready;
+   struct _TCBQUEUE* mutexWaitQueue;
    struct _TCBQUEUE* resource;
    struct _TCBQUEUE* blocked;
    struct _TCBQUEUE* terminated;

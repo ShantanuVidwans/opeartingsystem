@@ -152,10 +152,6 @@ void setTimer(long int time_milli){
         }
 }
 
-void initMutexList(MH* mutexHandler) {
-
-}
-
 void setupSchedulerContext(){
 	getcontext(&ctx_handler);
  	ctx_handler.uc_link=0;
@@ -452,6 +448,16 @@ void removeFromMutexHoldQueue(mypthread_mutex_t *mutex, mypthread_t pid){
     }
 }
 
+// Get pid from hold queue and lock the mutex
+void lockMutexWithNextWaitingThread(mypthread_mutex_t *mutex){
+//    Get and free first node
+    mutex_hold_node *curr = mutex->hold_queue;
+    mutex->hold_queue = curr->next;
+    mutex->guard = 1;
+    mutex->pid = curr->mypthread_t;
+    free(curr);
+}
+
 int isOnHoldQueueById(mypthread_mutex_t *mutex, mypthread_t id){
     mutex_hold_node *curr = mutex->hold_queue;
     if(curr == NULL){
@@ -668,6 +674,7 @@ void initializeTH(TH* scheduler)
   scheduler->terminated = createQueue("terminated");
   scheduler->blocked= createQueue("blocked");
   scheduler->resource = createQueue("resource");
+  scheduler->mutexWaitQueue = createQueue("mutexWaitQueue");
  
 }
 
