@@ -5,7 +5,6 @@
 
 #ifndef MYTHREAD_T_H
 #define MYTHREAD_T_H
-
 #define _XOPEN_SOURCE 600
 
 #define _GNU_SOURCE
@@ -34,7 +33,8 @@ typedef enum t_state{
   RUNNING,
   WAITING,
   YIELDED,
-  YIELDED_FOR_MUTEX_WAIT,
+  MUTEX_LOCKED,
+  MUTEX_UNLOCKED,
   BLOCKED,
   TERMINATED,
 }t_state;
@@ -90,7 +90,7 @@ int isOnHoldQueueById(mypthread_mutex_t *, mypthread_t);
 mypthread_mutex_t * getMutexIfExists(mutex_node *, mypthread_mutex_t *);
 void removeFromMutexHoldQueue(mypthread_mutex_t *, mypthread_t);
 void lockMutexWithNextWaitingThread(mypthread_mutex_t *);
-
+int isOnMutexHold(tcb *);
 
 int testMutexQ();
 
@@ -98,8 +98,8 @@ typedef struct _mypthread_mutex_t
 {
   int flag; //id
   int guard; //lock=1/unlock=0
-  mypthread_t pid; //thread that owns it
-  mutex_hold_node *hold_queue;
+  tcb *owner; //thread that owns it
+  tcb_queue *hold_queue;
     
 }mypthread_mutex_t;
 
@@ -116,13 +116,6 @@ typedef struct _MutexHandler {
 
 } MH;
 
-// Queue of all the requests made to the mutex
-typedef struct _MUTEXHOLDQUEUE{
-  mypthread_t mypthread_t;
-  mutex_hold_node *next;
-
-} mutex_hold_node;
-
 
 
 // Feel free to add your own auxiliary data structures (linked list or queue etc...)
@@ -132,8 +125,8 @@ typedef struct _Scheduler{
    struct _TCBQUEUE* medium;
    struct _TCBQUEUE* low;
    struct _TCBQUEUE* ready;
-   struct _TCBQUEUE* mutexWaitQueue;
    struct _TCBQUEUE* resource;
+    struct _TCBQUEUE* mutex_locked;
    struct _TCBQUEUE* blocked;
    struct _TCBQUEUE* terminated;
    tcb_node* current;
