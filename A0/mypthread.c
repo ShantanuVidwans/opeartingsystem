@@ -411,6 +411,15 @@ int mypthread_mutex_init(mypthread_mutex_t *mutex, const pthread_mutexattr_t *mu
         mutexHandler = (MH *)malloc(sizeof(MH));
         isMutexQNotAllocated = 0;
     }
+    // If the same mutex is being tried to create again
+    mutex_node *mutexListCurr = mutexHandler->mutexList;
+    while(mutexListCurr){
+        if(mutexListCurr->mutex == mutex){
+            printf("Mutex reinstantiated");
+            exit(1);
+        }
+        mutexListCurr= mutexListCurr->next;
+    }
 
     if (mutexHandler->mutex_size == 0)
     {
@@ -441,22 +450,36 @@ int mypthread_mutex_lock(mypthread_mutex_t *mutex)
     {
         disableTimer();
         // printf("\nytex Lock");
+        mypthread_t current_tid = -2;
+        if(MTH){
+            current_tid = MTH->current->tcb->tid;
+        }
         int isOnHold = 0;
-        tcb_node *searchedNode = searchQueue(mutex->hold_queue, MTH->current->tcb->tid);
+        tcb_node *searchedNode = searchQueue(mutex->hold_queue, current_tid);
         if (searchedNode)
         {
-            isOnHold = searchedNode->tcb->tid == MTH->current->tcb->tid;
+            isOnHold = searchedNode->tcb->tid == current_tid;
         }
         if (mutex->guard == 0 && !isOnHold)
         {
-            // printf("\nLocking");
+            if(MTH)
+{
             mutex->guard = 1;
             mutex->owner = MTH->current->tcb;
             setTimer(HIGH_EXEC_TIMEOUT);
             atomic_flag_clear(&lock);
             return 1;
+}
+else{
+    mutex->guard = 1;
+            mutex->owner = (tcb *) malloc(sizeof(tcb));
+            mutex->owner->tid = current_tid;
+            atomic_flag_clear(&lock);
+            return 1;
+}
+
         }
-        if (mutex->guard == 0 && isOnHold && peek(mutex->hold_queue)->tid == MTH->current->tcb->tid)
+        if (mutex->guard == 0 && isOnHold && peek(mutex->hold_queue)->tid == current_tid)
         {
             tcb_node *firstWaitingThreadNode = dequeue(mutex->hold_queue);
             // printf("\nLocking");
@@ -469,13 +492,13 @@ int mypthread_mutex_lock(mypthread_mutex_t *mutex)
             return 1;
         }
 
-        if (mutex->guard == 1 && mutex->owner->tid == MTH->current->tcb->tid)
+        if (mutex->guard == 1 && mutex->owner->tid == current_tid)
         {
             printf("\nThread tried to double lock a mutex that it already owns");
             exit(1);
         }
 
-        if (mutex->guard == 1 && searchQueue(mutex->hold_queue, MTH->current->tcb->tid) != NULL)
+        if (mutex->guard == 1 && searchQueue(mutex->hold_queue, current_tid) != NULL)
         {
             printf("\nThread tried to lock a mutex that was previously requested to lock");
             exit(1);
@@ -488,7 +511,6 @@ int mypthread_mutex_lock(mypthread_mutex_t *mutex)
         return 1;
     }
     else{
-        printf("Failed to sync");
         schedule(YIELDED);
         mypthread_mutex_lock(mutex);
     }
@@ -501,22 +523,32 @@ int mypthread_mutex_unlock(mypthread_mutex_t *mutex)
     if(!atomic_flag_test_and_set(&lock)){
         disableTimer();
         // printf("\n Mutex unlock");
-        if (mutex->guard == 1 && mutex->owner->tid == MTH->current->tcb->tid)
+        mypthread_t current_tid = -2;
+        if(MTH){
+            current_tid = MTH->current->tcb->tid;
+        }
+        if (mutex->guard == 1 && mutex->owner->tid == current_tid)
         {
             mutex->owner = NULL;
             // printf("\nUnlocking");
             mutex->guard = 0;
-            if(peek(mutex->hold_queue)!=NULL){
-                tcb_node *node = dequeue(mutex->hold_queue);
-                enqueue(node, MTH->ready);
+            if(MTH){
+                if(peek(mutex->hold_queue)!=NULL){
+                    tcb_node *node = dequeue(mutex->hold_queue);
+                    enqueue(node, MTH->ready);
+                }
+                setTimer(HIGH_EXEC_TIMEOUT);
             }
-            setTimer(HIGH_EXEC_TIMEOUT);
+            else{
+                tcb_node *node = dequeue(mutex->hold_queue);
+                free(node);
+            }
+
             atomic_flag_clear(&lock);
             return 1;
         }
     }
         else{
-        printf("Failed to sync");
         schedule(YIELDED);
         mypthread_mutex_unlock(mutex);
     }
@@ -550,9 +582,10 @@ int mypthread_mutex_destroy(mypthread_mutex_t *mutex)
     }
     while (curr->next != NULL)
     {
+        prev = curr;
         if (curr->mutex == mutex)
             break;
-        prev = curr;
+        
         curr = curr->next;
     }
 
