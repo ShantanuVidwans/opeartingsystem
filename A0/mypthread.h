@@ -5,6 +5,7 @@
 
 #ifndef MYTHREAD_T_H
 #define MYTHREAD_T_H
+#define _XOPEN_SOURCE 600
 
 #define _GNU_SOURCE
 
@@ -19,6 +20,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include <signal.h>
+#include <stdatomic.h>
 
 typedef uint mypthread_t;
 
@@ -32,6 +34,8 @@ typedef enum t_state{
   RUNNING,
   WAITING,
   YIELDED,
+  MUTEX_HOLD,
+  MUTEX_UNLOCKED,
   BLOCKED,
   TERMINATED,
 }t_state;
@@ -73,26 +77,46 @@ typedef struct _TCBQUEUE {
 /* add important states in a thread control block */
 
 /* mutex struct definition */
+typedef struct _mypthread_mutex_t mypthread_mutex_t;
+typedef struct _MUTEXNODE mutex_node;
+typedef struct _MutexHandler MH;
+typedef struct _MUTEXHOLDQUEUE mutex_hold_node;
+
+void initializeMutexQ(MH*);
+void addToMutexList(MH *, mypthread_mutex_t *);
+void addToMutexHoldQueue(mypthread_mutex_t *, mypthread_t);
+void lockMutex(MH *, mypthread_mutex_t *, mypthread_t);
+void destroyMutex(mypthread_mutex_t *);
+int isOnHoldQueueById(mypthread_mutex_t *, mypthread_t);
+mypthread_mutex_t * getMutexIfExists(mutex_node *, mypthread_mutex_t *);
+void removeFromMutexHoldQueue(mypthread_mutex_t *, mypthread_t);
+void lockMutexWithNextWaitingThread(mypthread_mutex_t *);
+int isOnMutexHold(tcb *);
+
+int testMutexQ();
+
 typedef struct _mypthread_mutex_t
 {
   int flag; //id
-  int guard; //lock/unlock
-  int mypthread_t; //thread that owns it
+  int guard; //lock=1/unlock=0
+  tcb *owner; //thread that owns it
+  tcb_queue *hold_queue;
     
 }mypthread_mutex_t;
 
 typedef struct _MUTEXNODE
 {
   mypthread_mutex_t* mutex;
-  struct _MUTEXNODE* next; 
+  mutex_node* next; 
     
 }mutex_node;
 
 typedef struct _MutexHandler {
-    mutex_node* mutexQ;
+    mutex_node* mutexList;
     unsigned int mutex_size;
 
 } MH;
+
 
 
 // Feel free to add your own auxiliary data structures (linked list or queue etc...)
@@ -110,52 +134,24 @@ typedef struct _Scheduler{
 
 /* include lib header files that you need here: */
 
-
-void initializeMutexQ(MH* MQ){
-  MQ->mutexQ = NULL;
-  MQ->mutex_size = 1;
-}
-
-tcb_queue* createQueue(char* name)
-{
-    tcb_queue* q
-        = (tcb_queue*)malloc(sizeof(tcb_queue));
-    q->name = name;
-    q->front = NULL;
-    return q;
-}
-
-void initializeTH(TH* scheduler)
-{  
-  scheduler->running = createQueue("running");
-  scheduler->medium = createQueue("medium");
-  scheduler->low = createQueue("low");
-  scheduler->ready = createQueue("ready");
-  scheduler->terminated = createQueue("terminated");
-  scheduler->blocked= createQueue("blocked");
-  scheduler->resource = createQueue("resource");
- 
-}
-
-void getTime(struct timespec time){
-	clock_gettime(CLOCK_REALTIME, &time);
-}
-
-tcb* setupThread(ucontext_t* context, mypthread_t join_id){
-	tcb* t = (tcb*) malloc(sizeof(tcb));
-	t->tid = rand();
-	t->priority = HIGH;
-	t->name = NULL;
-	t->t_retval = NULL;
-	t->t_context = context;
-	t->state = RUNNING;
-  t->join_id = join_id; // parent thread
-  return t;
-}
-
-
+// Queue Declarations
+tcb_node* createTCBNode(tcb* tcb);
+void enqueue(tcb_node* tcb, tcb_queue* q);
+tcb_node* dequeue(tcb_queue* q);
+tcb* peek(tcb_queue* q);
+void printQueue(tcb_queue* q);
+tcb_node* searchQueue(tcb_queue* q, mypthread_t tid);
+tcb_node* searchQueueAndRemove(tcb_queue* q, mypthread_t tid);
+int swapQueues(tcb_queue* source, tcb_queue* destination, mypthread_t tid);
 
 /* Function Declarations: */
+
+tcb_queue* createQueue(char*);
+void initializeTH(TH*);
+void getTime(struct timespec);
+tcb* setupThread(ucontext_t*, mypthread_t);
+int isEmpty(tcb_queue*);
+int transferQueue(tcb_queue*, tcb_queue*);
 
 /* create a new thread */
 int mypthread_create(mypthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg);
@@ -182,155 +178,12 @@ int mypthread_mutex_unlock(mypthread_mutex_t *mutex);
 int mypthread_mutex_destroy(mypthread_mutex_t *mutex);
 
 
-//Queue Code
-
-void printQueue(tcb_queue* q){
-   printf("\nprinting queue %s:", q->name);
-   tcb_node *p = q->front;
-   printf("[");
-
-   //start from the beginning
-   while(p != NULL) {
-      printf(" %d ",p->tcb->tid);
-      p = p->next;
-   }
-   printf("]\n");
-   return;
-}
-
-tcb_node* createTCBNode(tcb* tcb){
-    tcb_node* new_node = (tcb_node*) malloc(sizeof(tcb_node));
-    new_node->tcb = tcb;
-    new_node->next = NULL;
-    return new_node;
-} 
-
-void enqueue(tcb_node* tcb, tcb_queue* q){
-    if(tcb == NULL)
-        return;
-    tcb->next = q->front;
-    q->front = tcb;
-
-}
-
-int isEmpty(tcb_queue* q) {
-    return (q->front == NULL);
-}
-
-tcb_node* dequeue(tcb_queue* q)
-{
-    // If queue is empty, return NULL.
-    if (q->front == NULL)
-        return NULL;
- 
-    // Store previous front and move front one node ahead
-    tcb_node* temp = q->front;
-
- 
-    q->front = q->front->next;
-
-    temp->next = NULL; //IMPORTANT 
- 
-    return temp;
-}
-
-tcb* peek(tcb_queue* q){
-  if(q->front != NULL)
-    return q->front->tcb;
-  return NULL;
-}
 
 
-
-int transferQueue(tcb_queue* source, tcb_queue* destination){
-    // printf("transfering source PRE:");
-    // printQueue(source);
-    // printf("transfering destination PRE:");
-    // printQueue(destination);
-    while(!isEmpty(source)){
-        
-        tcb_node* temp = dequeue(source);
-            if(temp != NULL)
-                enqueue(temp, destination);    
-        }
-
-    // printf("transfering source POST:");
-    // printQueue(source);
-    // printf("transfering destination POST:");
-    // printQueue(destination);
-    return 0;
-}
-
-int insertAtEnd(tcb_node* tcb, tcb_queue* q){
-    tcb_node* p = q->front;
-
-   // point it to old first node
-   while(p->next != NULL)
-      p = p->next;
-
-    //point first to new first node
-    p->next = tcb;
-
-}
-
-tcb_node* searchQueue(tcb_queue* q, mypthread_t tid)
-{
-   tcb_node *temp = q->front;
-    
-    if (q->front == NULL)
-        return NULL;
- 
-    while(temp != NULL){
-        if(temp->tcb->tid == tid){
-            return temp;
-        }
-        temp = temp->next;
-    }
-    return NULL;
-}
-
-tcb_node* searchQueueAndRemove(tcb_queue* q, mypthread_t tid)
-{
-
-     tcb_node *temp = q->front;
-     tcb_node *prev = NULL;
-
-    if (q->front == NULL)
-        return NULL;
-
-    if (temp != NULL && temp->tcb->tid == tid) {
-      q->front = temp->next;
-      return temp;
-    }
-
-    while (temp != NULL && temp->tcb->tid != tid) {
-      prev = temp;
-      temp = temp->next;
-   }
-
-   if (temp == NULL){
-    return NULL;
-   }
-
-   prev->next=temp->next;
-
-   return temp;
-}
-
-int swapQueues(tcb_queue* source, tcb_queue* destination, mypthread_t tid){
-    tcb_node* node = searchQueueAndRemove(source, tid);
-    if (node == NULL){
-        printf("Node with id %u", tid);
-        return -1;
-    }
-    insertAtEnd(node, destination);
-    return 0;
-}
-
-
-
-
-
+#define HIGH_EXEC_TIMEOUT 30
+#define MEDIUM_EXEC_TIMEOUT 60
+#define LOW_EXEC_TIMEOUT 90
+#define T_STACK_SIZE 1048576
 
 #ifdef USE_MYTHREAD
 #define pthread_t mypthread_t
@@ -342,10 +195,6 @@ int swapQueues(tcb_queue* source, tcb_queue* destination, mypthread_t tid){
 #define pthread_mutex_lock mypthread_mutex_lock
 #define pthread_mutex_unlock mypthread_mutex_unlock
 #define pthread_mutex_destroy mypthread_mutex_destroy
-#define HIGH_EXEC_TIMEOUT 30
-#define MEDIUM_EXEC_TIMEOUT 60
-#define LOW_EXEC_TIMEOUT 90
-#define T_STACK_SIZE 1048576
 extern unsigned int s_tid;  //scheduler id
 extern TH* MTH; // scheduler
 extern MH* MQ;
