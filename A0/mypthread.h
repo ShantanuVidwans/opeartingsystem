@@ -20,6 +20,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include <signal.h>
+#include <stdatomic.h>
 
 typedef uint mypthread_t;
 
@@ -33,7 +34,7 @@ typedef enum t_state{
   RUNNING,
   WAITING,
   YIELDED,
-  MUTEX_LOCKED,
+  MUTEX_HOLD,
   MUTEX_UNLOCKED,
   BLOCKED,
   TERMINATED,
@@ -126,7 +127,6 @@ typedef struct _Scheduler{
    struct _TCBQUEUE* low;
    struct _TCBQUEUE* ready;
    struct _TCBQUEUE* resource;
-    struct _TCBQUEUE* mutex_locked;
    struct _TCBQUEUE* blocked;
    struct _TCBQUEUE* terminated;
    tcb_node* current;
