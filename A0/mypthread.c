@@ -398,7 +398,7 @@ void sched_RR()
 
 int mypthread_mutex_init(mypthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr)
 {
-    return 0;
+    // return 0;
     mutex->flag = 0;
     mutex->guard = 0;
     mutex->hold_queue = createQueue("mutex queue");
