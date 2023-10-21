@@ -30,25 +30,29 @@ int mode_bit = 0;
 int load_balance = 0;
 atomic_flag lock = ATOMIC_FLAG_INIT;
 
-
-void* executeThread() {
-	tcb* current_thread = MTH->current->tcb;
-	//printf("Running Thread %u\n", current_thread->tid);
-	void* val = current_thread->func_ptr(current_thread ->arg);
-	if (__sync_add_and_fetch(&mode_bit,1) == 1) {
-		disableTimer();
-		if (__sync_add_and_fetch(&mode_bit,-1) == 0) {
-				mypthread_exit(val);
-			}
-		else {
-			//printf("scheduler is unable to release lock for execution");
-			exit(1);
-		}
-	} else {
-				//printf("scheduler is unable to aquire lock for execution");
-				exit(1);
-			}
-	
+void *executeThread()
+{
+    tcb *current_thread = MTH->current->tcb;
+    // printf("Running Thread %u\n", current_thread->tid);
+    void *val = current_thread->func_ptr(current_thread->arg);
+    if (__sync_add_and_fetch(&mode_bit, 1) == 1)
+    {
+        disableTimer();
+        if (__sync_add_and_fetch(&mode_bit, -1) == 0)
+        {
+            mypthread_exit(val);
+        }
+        else
+        {
+            // printf("scheduler is unable to release lock for execution");
+            exit(1);
+        }
+    }
+    else
+    {
+        // printf("scheduler is unable to aquire lock for execution");
+        exit(1);
+    }
 }
 
 static void schedule(int signum)
@@ -61,103 +65,118 @@ static void schedule(int signum)
         disableTimer();
         // printf("Entering Schedule Event Handler %d\n", signum);
 
-		if(signum == SIGALRM){
-			//printf("Your ran too long %u \n", MTH->current->tcb->tid);
-			enqueue(MTH->current, MTH->ready);
-			printQueue(MTH->ready);
-		}
-		if(signum == YIELDED){
-			//printf("I am Yielding %u \n", MTH->current->tcb->tid);
-			if(load_balance == 0) {
-				enqueue(MTH->current, MTH->ready);
-			}
-			load_balance = 0;
-		}
-		if(signum == BLOCKED){
-			//printf("exiting thread %u \n",MTH->current->tcb->tid);
-			enqueue(MTH->current,MTH->blocked);
-			//printQueue(MTH->blocked);
-		}
-		if(signum == TERMINATED){
-			//printf("exiting thread %u \n",MTH->current->tcb->tid);
-			enqueue(MTH->current,MTH->terminated);
-			//printQueue(MTH->terminated);
-		}
+        if (signum == SIGALRM)
+        {
+            // printf("Your ran too long %u \n", MTH->current->tcb->tid);
+            enqueue(MTH->current, MTH->ready);
+            // printQueue(MTH->ready);
+        }
+        if (signum == MUTEX_HOLD)
+        {
+            // I dont think we need to do anything
+        }
+        //        If a mutex is unlocked then find the
+        if (signum == YIELDED)
+        {
+            // printf("I am Yielding %u \n", MTH->current->tcb->tid);
+            if (load_balance == 0)
+            {
+                enqueue(MTH->current, MTH->ready);
+            }
+            load_balance = 0;
+        }
+        if (signum == BLOCKED)
+        {
+            // printf("exiting thread %u \n",MTH->current->tcb->tid);
+            enqueue(MTH->current, MTH->blocked);
+            // printQueue(MTH->blocked);
+        }
+        if (signum == TERMINATED)
+        {
+            // printf("exiting thread %u \n",MTH->current->tcb->tid);
+            enqueue(MTH->current, MTH->terminated);
+            // printQueue(MTH->terminated);
+        }
 
-		//printf("current scheduler state { \n");
-		// printQueue(MTH->ready);
-		// printQueue(MTH->running);
-		// printQueue(MTH->blocked);
-		// printQueue(MTH->terminated);
-		//printf("}\n");
-		
-		
-		// getchar();
-		tcb_node* prev_thread = MTH->current;
-		tcb_node* next_thread = dequeue(MTH->running);
-		if(next_thread == NULL){
-			//printf("Running Queue is Empty going to scheduler \n");
-			next_thread = MTH->s_tcb_node;
-			load_balance = 1;
-		}
-		//printf("Next up is %u \n", next_thread->tcb->tid);
-		MTH->current=next_thread;
+        // printf("current scheduler state { \n");
+        //  printQueue(MTH->ready);
+        //  printQueue(MTH->running);
+        //  printQueue(MTH->blocked);
+        //  printQueue(MTH->terminated);
+        // printf("}\n");
 
-		if (__sync_add_and_fetch(&mode_bit,-1) == 0) {
-		
-			//printf("Leaving Schedule Event Handler\n");
-			//printf("Swapping Context to %u\n ",MTH->current->tcb->tid);
-			if(MTH->current->tcb != 0){
-				setTimer(HIGH_EXEC_TIMEOUT);
-			}
-			swapcontext(prev_thread->tcb->t_context, MTH->current->tcb->t_context);
-		} else {
-			//printf("Unable to leave Schedule Event Handler %d\n", mode_bit);
-			exit(1);
-		}
-		return; 
+        // getchar();
+        tcb_node *prev_thread = MTH->current;
+        tcb_node *next_thread = dequeue(MTH->running);
+        if (next_thread == NULL)
+        {
+            // printf("Running Queue is Empty going to scheduler \n");
+            next_thread = MTH->s_tcb_node;
+            load_balance = 1;
+        }
+        // printf("Next up is %u \n", next_thread->tcb->tid);
+        MTH->current = next_thread;
 
-	}
-	//printf("oops interrupted the scheduler\n");
-	return;
-	
+        if (__sync_add_and_fetch(&mode_bit, -1) == 0)
+        {
+
+            // printf("Leaving Schedule Event Handler\n");
+            // printf("Swapping Context to %u\n ",MTH->current->tcb->tid);
+            if (MTH->current->tcb != 0)
+            {
+                setTimer(HIGH_EXEC_TIMEOUT);
+            }
+            swapcontext(prev_thread->tcb->t_context, MTH->current->tcb->t_context);
+        }
+        else
+        {
+            // printf("Unable to leave Schedule Event Handler %d\n", mode_bit);
+            exit(1);
+        }
+        return;
+    }
+    // printf("oops interrupted the scheduler\n");
+    return;
 }
 
-void disableTimer() {
-	if(sigprocmask(SIG_BLOCK,&act_timer.sa_mask,&act_timer.sa_mask)==-1) // SIGNAL is blocked
- 	{
-  		perror("sigprocmask");
- 	}
-	
-	timer.it_value.tv_sec = 0;
- 	timer.it_value.tv_usec = 0;
-	if (setitimer(ITIMER_REAL, &timer, NULL) == -1) {
-		perror("Unable to disable time in for MTH\n");
-    	exit(1);
+void disableTimer()
+{
+    if (sigprocmask(SIG_BLOCK, &act_timer.sa_mask, &act_timer.sa_mask) == -1) // SIGNAL is blocked
+    {
+        perror("sigprocmask");
+    }
+
+    timer.it_value.tv_sec = 0;
+    timer.it_value.tv_usec = 0;
+    if (setitimer(ITIMER_REAL, &timer, NULL) == -1)
+    {
+        perror("Unable to disable time in for MTH\n");
+        exit(1);
     }
 }
 
-void setHandler(){
-
-	act_timer.sa_flags=0;
-    act_timer.sa_handler=&schedule;
+void setHandler()
+{
+    act_timer.sa_flags = 0;
+    act_timer.sa_handler = &schedule;
     sigemptyset(&act_timer.sa_mask);
     sigaddset(&act_timer.sa_mask, SIGALRM);
-    sigaction(SIGALRM, &act_timer, NULL); 
+    sigaction(SIGALRM, &act_timer, NULL);
 }
 
-
-void setTimer(long int time_milli){
-	if(sigprocmask(SIG_UNBLOCK,&act_timer.sa_mask,&act_timer.sa_mask)==-1) // SIGNAL is unblocked
- 	{
-  		perror("sigprocmask");
- 	}
+void setTimer(long int time_milli)
+{
+    if (sigprocmask(SIG_UNBLOCK, &act_timer.sa_mask, &act_timer.sa_mask) == -1) // SIGNAL is unblocked
+    {
+        perror("sigprocmask");
+    }
     timer.it_value.tv_sec = 0;
- 	timer.it_value.tv_usec = time_milli;
-    if (setitimer(ITIMER_REAL, &timer, NULL) == -1) {
-    	perror("Unable to set time in for MTH\n");
-    	exit(1);
-        }
+    timer.it_value.tv_usec = time_milli;
+    if (setitimer(ITIMER_REAL, &timer, NULL) == -1)
+    {
+        perror("Unable to set time in for MTH\n");
+        exit(1);
+    }
 }
 
 void setupSchedulerContext()
@@ -170,137 +189,149 @@ void setupSchedulerContext()
     return makecontext(&ctx_handler, (void *)&sched_RR, 0);
 }
 
-void setupSchedulerContext(){
-	getcontext(&ctx_handler);
- 	ctx_handler.uc_link=0;
- 	ctx_handler.uc_stack.ss_sp=malloc(T_STACK_SIZE);
- 	ctx_handler.uc_stack.ss_size=T_STACK_SIZE;
- 	ctx_handler.uc_stack.ss_flags=0;
- 	return makecontext(&ctx_handler, (void*)&sched_RR, 0);
-}
-
-
-int startScheduler() {
-	if (MTH == NULL) {
-		 
-		MTH = (TH*) malloc(sizeof(TH));
-		initializeTH(MTH); //Setup the MTH's queues
-		setHandler();
-		setupSchedulerContext();//setup scheduler context
-		tcb* s_tcb = setupThread(&ctx_handler, -1);
-		s_tcb->tid = 0;
-		s_tcb->t_context = &ctx_handler;
-		MTH->s_tcb_node = createTCBNode(s_tcb);
-		//printf("scheduler_thread created with id %u\n", s_tcb->tid); 
-		//printf("Setting up main thread \n");
-		tcb* main_thread = setupThread(&ctx_main, s_tcb->tid);
-		tcb_node * main_node = createTCBNode(main_thread);
-		//printf("main_thread created with id %d\n", main_thread->tid);
-		//enqueue(main_node, MTH->ready);
-		enqueue(MTH->s_tcb_node, MTH->ready);
-		//printf("First Ready Queue : ");
-		//printQueue(MTH->ready);
-		isSchedulerNotStarted = 0;
-		MTH->current = main_node;
-		return 1;
-	}
-	return -1;
-}
-
-int mypthread_create(mypthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg)
+int startScheduler()
 {
-	if (__sync_add_and_fetch(&mode_bit,1) == 1) {
-		disableTimer();
-		if(isSchedulerNotStarted) {
-			//printf("Setting Up\n");
-			startScheduler();
-			//printf("Done Setting Up\n");
-			isSchedulerNotStarted = 0;
-		}	
+    if (MTH == NULL)
+    {
 
+        MTH = (TH *)malloc(sizeof(TH));
+        initializeTH(MTH); // Setup the MTH's queues
+        setHandler();
+        setupSchedulerContext(); // setup scheduler context
+        tcb *s_tcb = setupThread(&ctx_handler, -1);
+        s_tcb->tid = 0;
+        s_tcb->t_context = &ctx_handler;
+        MTH->s_tcb_node = createTCBNode(s_tcb);
+        // printf("scheduler_thread created with id %u\n", s_tcb->tid);
+        // printf("Setting up main thread \n");
+        tcb *main_thread = setupThread(&ctx_main, s_tcb->tid);
+        tcb_node *main_node = createTCBNode(main_thread);
+        // printf("main_thread created with id %d\n", main_thread->tid);
+        // enqueue(main_node, MTH->ready);
+        enqueue(MTH->s_tcb_node, MTH->ready);
+        // printf("First Ready Queue : ");
+        // printQueue(MTH->ready);
+        isSchedulerNotStarted = 0;
+        MTH->current = main_node;
+        return 1;
+    }
+    return -1;
+}
 
-		ucontext_t* thread_context = (ucontext_t *) malloc(sizeof(ucontext_t));
-		getcontext(thread_context);
-	 	
-	 	if ((thread_context->uc_stack.ss_sp = (char *) malloc(T_STACK_SIZE)) != NULL) {
-			thread_context->uc_link=0;
-	 		thread_context->uc_stack.ss_size=T_STACK_SIZE;
-	 		thread_context->uc_stack.ss_flags=0;
-	 		
-	 		makecontext(thread_context, (void*)&executeThread,0);
+int mypthread_create(mypthread_t *thread, pthread_attr_t *attr, void *(*function)(void *), void *arg)
+{
+    if (__sync_add_and_fetch(&mode_bit, 1) == 1)
+    {
+        disableTimer();
+        if (isSchedulerNotStarted)
+        {
+            // printf("Setting Up\n");
+            startScheduler();
+            // printf("Done Setting Up\n");
+            isSchedulerNotStarted = 0;
+        }
 
-			tcb* new_thread = setupThread(thread_context, -1);
-			new_thread->func_ptr =function;
-			new_thread->arg = arg;
-			enqueue(createTCBNode(new_thread), MTH->ready);
+        ucontext_t *thread_context = (ucontext_t *)malloc(sizeof(ucontext_t));
+        getcontext(thread_context);
 
-			*thread = new_thread->tid;
-			//printf("Making Thread with Id %u\n",new_thread->tid);
-			if (__sync_add_and_fetch(&mode_bit,-1) == 0) {
-				setTimer(HIGH_EXEC_TIMEOUT);		
-				return new_thread->tid;
-			} else {
-				//printf("Unable to leave thread creation %d\n", mode_bit);
-				exit(1);
-			}
-		}
-		else {
-			//printf("Cannot Malloc for stack space");
-			exit(1);
-		}
-	}	 
-	return -1;
+        if ((thread_context->uc_stack.ss_sp = (char *)malloc(T_STACK_SIZE)) != NULL)
+        {
+            thread_context->uc_link = 0;
+            thread_context->uc_stack.ss_size = T_STACK_SIZE;
+            thread_context->uc_stack.ss_flags = 0;
+
+            makecontext(thread_context, (void *)&executeThread, 0);
+
+            tcb *new_thread = setupThread(thread_context, -1);
+            new_thread->func_ptr = function;
+            new_thread->arg = arg;
+            enqueue(createTCBNode(new_thread), MTH->ready);
+
+            *thread = new_thread->tid;
+            // printf("Making Thread with Id %u\n",new_thread->tid);
+            if (__sync_add_and_fetch(&mode_bit, -1) == 0)
+            {
+                setTimer(HIGH_EXEC_TIMEOUT);
+                return new_thread->tid;
+            }
+            else
+            {
+                // printf("Unable to leave thread creation %d\n", mode_bit);
+                exit(1);
+            }
+        }
+        else
+        {
+            // printf("Cannot Malloc for stack space");
+            exit(1);
+        }
+    }
+    return -1;
 };
 
-int mypthread_yield(){
-	if (__sync_add_and_fetch(&mode_bit,1) == 1) {
-		disableTimer();
-		if (__sync_add_and_fetch(&mode_bit,-1) == 0) {
-				schedule(YIELDED);
-			}
-	}
+int mypthread_yield()
+{
+    if (__sync_add_and_fetch(&mode_bit, 1) == 1)
+    {
+        disableTimer();
+        if (__sync_add_and_fetch(&mode_bit, -1) == 0)
+        {
+            schedule(YIELDED);
+        }
+    }
 };
 
 void mypthread_exit(void *value_ptr)
 {
-	if (__sync_add_and_fetch(&mode_bit,1) == 1) {
-		disableTimer();
-			//printf("Thread is exiting");
-			MTH->current->tcb->t_retval = value_ptr;
-			if (__sync_add_and_fetch(&mode_bit,-1) == 0) {
-				schedule(TERMINATED);
-			} else {
-				//printf("scheduler is unable to release lock for exit %d\n", mode_bit);
-				exit(1);
-			}	
-
-		} else {
-			//printf("scheduler is unable to aquire lock for exit %d\n", mode_bit);
-			exit(1);
-		}
+    if (__sync_add_and_fetch(&mode_bit, 1) == 1)
+    {
+        disableTimer();
+        // printf("Thread is exiting");
+        MTH->current->tcb->t_retval = value_ptr;
+        if (__sync_add_and_fetch(&mode_bit, -1) == 0)
+        {
+            schedule(TERMINATED);
+        }
+        else
+        {
+            // printf("scheduler is unable to release lock for exit %d\n", mode_bit);
+            exit(1);
+        }
+    }
+    else
+    {
+        // printf("scheduler is unable to aquire lock for exit %d\n", mode_bit);
+        exit(1);
+    }
 };
 
 int mypthread_join(mypthread_t thread, void **value_ptr)
 {
-	if (__sync_add_and_fetch(&mode_bit,1) == 1) {
-		disableTimer();
-			//printf("Thread is blockeding");
-			if (__sync_add_and_fetch(&mode_bit,-1) == 0) {
-				MTH->current->tcb->join_id = thread;
-				schedule(BLOCKED);
-				
-			}else {
-				//printf("scheduler is unable to release lock for join %d\n", mode_bit);
-				exit(1);
-			}
-		} else {
-			//printf("scheduler is unable to aquire lock for join %d\n", mode_bit);
-			exit(1);
-		}
-	if (value_ptr != NULL){
-		*value_ptr = MTH->current->tcb->t_retval;
-	}
-	return 0;
+    if (__sync_add_and_fetch(&mode_bit, 1) == 1)
+    {
+        disableTimer();
+        // printf("Thread is blockeding");
+        if (__sync_add_and_fetch(&mode_bit, -1) == 0)
+        {
+            MTH->current->tcb->join_id = thread;
+            schedule(BLOCKED);
+        }
+        else
+        {
+            // printf("scheduler is unable to release lock for join %d\n", mode_bit);
+            exit(1);
+        }
+    }
+    else
+    {
+        // printf("scheduler is unable to aquire lock for join %d\n", mode_bit);
+        exit(1);
+    }
+    if (value_ptr != NULL)
+    {
+        *value_ptr = MTH->current->tcb->t_retval;
+    }
+    return 0;
 };
 
 void sched_RR()
@@ -363,7 +394,6 @@ void sched_RR()
             exit(1);
         }
     };
-
 }
 
 int mypthread_mutex_init(mypthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr)
@@ -386,7 +416,7 @@ int mypthread_mutex_init(mypthread_mutex_t *mutex, const pthread_mutexattr_t *mu
     {
         if (mutexListCurr->mutex == mutex)
         {
-//            printf("Mutex reinstantiated");
+            //            printf("Mutex reinstantiated");
             exit(1);
         }
         mutexListCurr = mutexListCurr->next;
@@ -460,7 +490,8 @@ int mypthread_mutex_lock(mypthread_mutex_t *mutex)
                 return 1;
             }
 
-            if(mutex->hold_queue){
+            if (mutex->hold_queue)
+            {
                 if (mutex->guard == 1 && searchQueue(mutex->hold_queue, current_tid) != NULL)
                 {
                     printf("\nThread tried to lock a mutex that was previously requested to lock");
@@ -468,12 +499,12 @@ int mypthread_mutex_lock(mypthread_mutex_t *mutex)
                     return 1;
                 }
             }
-            else{
+            else
+            {
                 atomic_flag_clear(&lock);
                 setTimer(HIGH_EXEC_TIMEOUT);
                 return 0;
             }
-
 
             enqueue(createTCBNode(MTH->current->tcb), mutex->hold_queue);
             schedule(MUTEX_HOLD);
@@ -505,12 +536,12 @@ int mypthread_mutex_unlock(mypthread_mutex_t *mutex)
                 mutex->owner = NULL;
                 // printf("\nUnlocking");
                 mutex->guard = 0;
-                if(mutex->hold_queue)
-                if (peek(mutex->hold_queue) != NULL)
-                {
-                    tcb_node *node = dequeue(mutex->hold_queue);
-                    enqueue(node, MTH->ready);
-                }
+                if (mutex->hold_queue)
+                    if (peek(mutex->hold_queue) != NULL)
+                    {
+                        tcb_node *node = dequeue(mutex->hold_queue);
+                        enqueue(node, MTH->ready);
+                    }
                 setTimer(HIGH_EXEC_TIMEOUT);
             }
             atomic_flag_clear(&lock);
@@ -522,7 +553,6 @@ int mypthread_mutex_unlock(mypthread_mutex_t *mutex)
         }
     }
 }
-
 
 /* destroy a mutex */
 int mypthread_mutex_destroy(mypthread_mutex_t *mutex)
