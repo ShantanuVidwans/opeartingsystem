@@ -160,9 +160,14 @@ void setTimer(long int time_milli){
         }
 }
 
-void initMutexQ(MH* MutexQ) {
-	MutexQ = (MH*) malloc(sizeof(MH));
-	initializeMutexQ(MutexQ);
+void setupSchedulerContext()
+{
+    getcontext(&ctx_handler);
+    ctx_handler.uc_link = 0;
+    ctx_handler.uc_stack.ss_sp = malloc(T_STACK_SIZE);
+    ctx_handler.uc_stack.ss_size = T_STACK_SIZE;
+    ctx_handler.uc_stack.ss_flags = 0;
+    return makecontext(&ctx_handler, (void *)&sched_RR, 0);
 }
 
 void setupSchedulerContext(){
@@ -298,52 +303,66 @@ int mypthread_join(mypthread_t thread, void **value_ptr)
 	return 0;
 };
 
-void sched_RR() {
-	while(1){
-		if (__sync_add_and_fetch(&mode_bit,1) == 1) {
-			//printf("in scheduler \n");
-			disableTimer();
-			//getchar();
-			if(!isEmpty(MTH->ready)){
-				//printQueue(MTH->ready);
-				transferQueue(MTH->ready, MTH->running);
-				//printQueue(MTH->running);
-				//printQueue(MTH->ready);
-			}
-			if(!isEmpty(MTH->blocked) && !isEmpty(MTH->terminated)){
-				//printf("Checking blocked queue for joinable threads\n");
-				tcb_node* temp_waiting = dequeue(MTH->blocked);
-				mypthread_t id_to_find = temp_waiting->tcb->join_id;
+void sched_RR()
+{
+    while (1)
+    {
+        // printf("Scheduler Called");
+        if (__sync_add_and_fetch(&mode_bit, 1) == 1)
+        {
+            // printf("in scheduler \n");
+            disableTimer();
+            // getchar();
 
-				//printf("looking for %u\n", id_to_find);
-				tcb_node* terminated_thread = searchQueueAndRemove(MTH->terminated, id_to_find);
-				if (terminated_thread != NULL){
-					//printf("FOUND IT%u\n", id_to_find);
-					temp_waiting->tcb->t_retval = terminated_thread->tcb->t_retval;
-					if(terminated_thread->tcb->t_retval != NULL){
-						//printf("%u got value %d from thread %u\n",temp_waiting->tcb->tid, *(int*)temp_waiting->tcb->t_retval, terminated_thread->tcb->tid);
-					}
-					enqueue(temp_waiting, MTH->ready);
-					//deleteTerminatedNode;
-				} else {
-					enqueue(temp_waiting, MTH->blocked);
-				}
-			}
-		
-			//getchar();
-			if (__sync_add_and_fetch(&mode_bit,-1) == 0) {
-				mypthread_yield();
-			}	
-			else {
-				//printf("scheduler is unable to release lock %d\n", mode_bit);
-				exit(1);
-			}
-		} else {
-			//printf("scheduler is unable to aquire lock %d\n", mode_bit);
-			exit(1);
-		}
-	};
+            if (!isEmpty(MTH->ready))
+            {
+                // printQueue(MTH->ready);
+                transferQueue(MTH->ready, MTH->running);
+                // printQueue(MTH->running);
+                // printQueue(MTH->ready);
+            }
+            if (!isEmpty(MTH->blocked) && !isEmpty(MTH->terminated))
+            {
+                // printf("Checking blocked queue for joinable threads\n");
+                tcb_node *temp_waiting = dequeue(MTH->blocked);
+                mypthread_t id_to_find = temp_waiting->tcb->join_id;
 
+                // printf("looking for %u\n", id_to_find);
+                tcb_node *terminated_thread = searchQueueAndRemove(MTH->terminated, id_to_find);
+                if (terminated_thread != NULL)
+                {
+                    // printf("FOUND IT%u\n", id_to_find);
+                    temp_waiting->tcb->t_retval = terminated_thread->tcb->t_retval;
+                    if (terminated_thread->tcb->t_retval != NULL)
+                    {
+                        // printf("%u got value %d from thread %u\n",temp_waiting->tcb->tid, *(int*)temp_waiting->tcb->t_retval, terminated_thread->tcb->tid);
+                    }
+                    enqueue(temp_waiting, MTH->ready);
+                    // deleteTerminatedNode;
+                }
+                else
+                {
+                    enqueue(temp_waiting, MTH->blocked);
+                }
+            }
+
+            // getchar();
+            if (__sync_add_and_fetch(&mode_bit, -1) == 0)
+            {
+                mypthread_yield();
+            }
+            else
+            {
+                // printf("scheduler is unable to release lock %d\n", mode_bit);
+                exit(1);
+            }
+        }
+        else
+        {
+            // printf("scheduler is unable to aquire lock %d\n", mode_bit);
+            exit(1);
+        }
+    };
 
 }
 
@@ -508,7 +527,7 @@ int mypthread_mutex_unlock(mypthread_mutex_t *mutex)
 /* destroy a mutex */
 int mypthread_mutex_destroy(mypthread_mutex_t *mutex)
 {
-    return 0;
+    // return 0;
     mutex_node *curr = mutexHandler->mutexList, *prev;
     if (curr->next == NULL)
     {
