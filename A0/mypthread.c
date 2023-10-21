@@ -59,6 +59,7 @@ static void schedule(int signum)
 {
     // if(MTH->current->tcb)
     // printf("\nScheduling: Current Thread = %d", MTH->current->tcb->tid);
+    setTimer(HIGH_EXEC_TIMEOUT);
     if (__sync_add_and_fetch(&mode_bit, 1) == 1)
     {
         disableTimer();
@@ -449,80 +450,74 @@ int mypthread_mutex_init(mypthread_mutex_t *mutex, const pthread_mutexattr_t *mu
 /* Aquire a mutex (lock) */
 int mypthread_mutex_lock(mypthread_mutex_t *mutex)
 {
-    while(1){
-    if (!atomic_flag_test_and_set(&lock))
+    while (1)
     {
-        disableTimer();
-        // printf("\nytex Lock");
-        mypthread_t current_tid = -2;
-        if (MTH)
+        if (!atomic_flag_test_and_set(&lock))
         {
-            current_tid = MTH->current->tcb->tid;
-        }
-        int isOnHold = 0;
-        tcb_node *searchedNode = NULL;
-        if(mutex->hold_queue)
-            searchQueue(mutex->hold_queue, current_tid);
-        if (searchedNode)
-        {
-            isOnHold = searchedNode->tcb->tid == current_tid;
-        }
-        if (mutex->guard == 0 && !isOnHold)
-        {
-            if (MTH)
+            disableTimer();
+            // printf("\nytex Lock");
+            mypthread_t current_tid = MTH->current->tcb->tid;
+            int isOnHold = 0;
+            tcb_node *searchedNode = NULL;
+            if (mutex->hold_queue)
+                searchQueue(mutex->hold_queue, current_tid);
+            if (searchedNode)
+            {
+                isOnHold = searchedNode->tcb->tid == current_tid;
+            }
+            if (mutex->guard == 0 && !isOnHold)
             {
                 mutex->guard = 1;
                 mutex->owner = MTH->current->tcb;
+                atomic_flag_clear(&lock);
                 setTimer(HIGH_EXEC_TIMEOUT);
-                atomic_flag_clear(&lock);
                 return 1;
             }
-            else
+            if (mutex->guard == 0 && isOnHold && peek(mutex->hold_queue)->tid == current_tid)
             {
+                tcb_node *firstWaitingThreadNode = dequeue(mutex->hold_queue);
+                // printf("\nLocking");
                 mutex->guard = 1;
-                mutex->owner = (tcb *)malloc(sizeof(tcb));
-                mutex->owner->tid = current_tid;
+                mutex->owner = firstWaitingThreadNode->tcb;
+                free(firstWaitingThreadNode);
+                // Scheduele
                 atomic_flag_clear(&lock);
+                setTimer(HIGH_EXEC_TIMEOUT);
                 return 1;
             }
-        }
-        if (mutex->guard == 0 && isOnHold && peek(mutex->hold_queue)->tid == current_tid)
-        {
-            tcb_node *firstWaitingThreadNode = dequeue(mutex->hold_queue);
-            // printf("\nLocking");
-            mutex->guard = 1;
-            mutex->owner = firstWaitingThreadNode->tcb;
-            free(firstWaitingThreadNode);
-            // Scheduele
+
+            if (mutex->guard == 1 && mutex->owner->tid == current_tid)
+            {
+                printf("\nThread tried to double lock a mutex that it already owns");
+                // exit(1);
+                return 1;
+            }
+
+            if(mutex->hold_queue){
+                if (mutex->guard == 1 && searchQueue(mutex->hold_queue, current_tid) != NULL)
+                {
+                    printf("\nThread tried to lock a mutex that was previously requested to lock");
+                    // exit(1);
+                    return 1;
+                }
+            }
+            else{
+                atomic_flag_clear(&lock);
+                setTimer(HIGH_EXEC_TIMEOUT);
+                return 0;
+            }
+
+
+            enqueue(createTCBNode(MTH->current->tcb), mutex->hold_queue);
+            schedule(MUTEX_HOLD);
             setTimer(HIGH_EXEC_TIMEOUT);
             atomic_flag_clear(&lock);
             return 1;
         }
-
-        if (mutex->guard == 1 && mutex->owner->tid == current_tid)
+        else
         {
-            printf("\nThread tried to double lock a mutex that it already owns");
-            // exit(1);
-            return 1;
+            schedule(YIELDED);
         }
-
-        if (mutex->guard == 1 && searchQueue(mutex->hold_queue, current_tid) != NULL)
-        {
-            printf("\nThread tried to lock a mutex that was previously requested to lock");
-            // exit(1);
-            return 1;
-        }
-
-        enqueue(createTCBNode(MTH->current->tcb), mutex->hold_queue);
-        schedule(MUTEX_HOLD);
-        setTimer(HIGH_EXEC_TIMEOUT);
-        atomic_flag_clear(&lock);
-        return 1;
-    }
-    else
-    {
-        schedule(YIELDED);
-    }
     }
     return 1;
 }
@@ -530,23 +525,20 @@ int mypthread_mutex_lock(mypthread_mutex_t *mutex)
 /* release a mutex (unlock) */
 int mypthread_mutex_unlock(mypthread_mutex_t *mutex)
 {
-    return 0;
-    if (!atomic_flag_test_and_set(&lock))
+    while (1)
     {
-        disableTimer();
-        // printf("\n Mutex unlock");
-        mypthread_t current_tid = -2;
-        if (MTH)
+        // return 0;
+        if (!atomic_flag_test_and_set(&lock))
         {
-            current_tid = MTH->current->tcb->tid;
-        }
-        if (mutex->guard == 1 && mutex->owner->tid == current_tid)
-        {
-            mutex->owner = NULL;
-            // printf("\nUnlocking");
-            mutex->guard = 0;
-            if (MTH)
+            disableTimer();
+            // printf("\n Mutex unlock");
+            mypthread_t current_tid = MTH->current->tcb->tid;
+            if (mutex->guard == 1 && mutex->owner->tid == current_tid)
             {
+                mutex->owner = NULL;
+                // printf("\nUnlocking");
+                mutex->guard = 0;
+                if(mutex->hold_queue)
                 if (peek(mutex->hold_queue) != NULL)
                 {
                     tcb_node *node = dequeue(mutex->hold_queue);
@@ -554,21 +546,14 @@ int mypthread_mutex_unlock(mypthread_mutex_t *mutex)
                 }
                 setTimer(HIGH_EXEC_TIMEOUT);
             }
-            else
-            {
-                tcb_node *node = dequeue(mutex->hold_queue);
-                free(node);
-            }
-
             atomic_flag_clear(&lock);
             return 1;
         }
+        else
+        {
+            schedule(YIELDED);
+        }
     }
-    else
-    {
-        schedule(YIELDED);
-    }
-    return 1;
 }
 
 int isOnMutexHold(tcb *tcb)
