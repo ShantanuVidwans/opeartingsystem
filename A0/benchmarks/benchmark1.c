@@ -8,7 +8,7 @@
 #include "../mypthread.h"
 
 #define DEFAULT_THREAD_NUM 2
-#define ARRAY_SIZE 10000
+#define ARRAY_SIZE 100000
 
 /* Global variables */
 pthread_mutex_t   mutex;
@@ -211,22 +211,7 @@ void verify() {
 int main(int argc, char **argv) {
     
     int i = 0;
-
-    if (argc == 1) {
-        thread_num = DEFAULT_THREAD_NUM;
-    } else {
-        if (argv[1] < 1) {
-            printf("enter a valid thread number\n");
-            return 0;
-        } else {
-            thread_num = atoi(argv[1]);
-        }
-    }
-
-    // initialize counter
-    counter = (int*)malloc(thread_num*sizeof(int));
-    for (i = 0; i < thread_num; ++i)
-        counter[i] = i;
+    thread_num = 2;
 
     // initialize pthread_t
     thread = (pthread_t*)malloc(thread_num*sizeof(pthread_t));
