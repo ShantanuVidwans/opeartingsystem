@@ -17,7 +17,7 @@ void call_api(void* arg) {
 // A dummy function to simulate a long running api with unknown IO times
 void dummyApi(){
 	int r = rand() % 10;
-	for(int i=0; i < 1000000*r; i++) continue;
+	for(int i=0; i < 100000000*r; i++) continue;
 }
 
 void verify(int num){

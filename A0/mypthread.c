@@ -10,12 +10,12 @@ void setTimer(long int time_milli);
 
 int mypthread_yield();
 
-void sched_RR();
-
 void disableTimer();
 
 void printCurrSchedulerState();
+void sched_RR();
 void sched_PSJF();
+void sched_MLFQ();
 
 
 void updatePriority(tcb_node* node, int change);
@@ -54,12 +54,16 @@ void *executeThread()
     }
 }
 void calcAndAddExecTime(tcb* tcb){
-     //printf("\nTiming: Current Thread = %u\n", MTH->current->tcb->tid);
+    //  printf("\nTiming: Current Thread = %u\n", MTH->current->tcb->tid);
     clock_t end = clock(); //Get Time
-    double execTime = (double)(end - tcb->start_exec) / (CLOCKS_PER_SEC * 1000); //Get Time per sec divide by 1000 to get ms
-    tcb->total_exec = tcb->total_exec + execTime; //Append time
-    //printf("EXEC TIME = %f\n",tcb->total_exec);
+    double execTime = (double)(end - tcb->start_exec) / (CLOCKS_PER_SEC); //Get Time per sec divide by 1000 to get ms
+    tcb->total_exec = tcb->total_exec + (execTime * 1000 * 1000); //Append time
+    // printf("EXEC TIME = %f\n",tcb->total_exec);
 
+}
+
+void resetExecTime(tcb* tcb){
+    tcb->total_exec = 0.0; //Append time
 }
 
 static void schedule(int signum)
@@ -80,7 +84,15 @@ static void schedule(int signum)
             if(MTH->current->tcb->tid == 0){
                 return;
             }
-            enqueue(MTH->current, MTH->ready);
+            if(MTH->current->tcb->total_exec > MEDIUM_EXEC_TIMEOUT){
+                // printf("\nHigh Exec Thread Detected");
+            }
+            if(MTH->current->tcb->priority = HIGH)
+                enqueue(MTH->current, MTH->ready);
+            else if(MTH->current->tcb->priority = MED)
+                enqueue(MTH->current, MTH->medium);
+            else if(MTH->current->tcb->priority = LOW)
+                enqueue(MTH->current, MTH->low);
 
             // //printQueue(MTH->ready);
         } else if (signum == MUTEX_HOLD)
@@ -92,12 +104,14 @@ static void schedule(int signum)
         else if (signum == YIELDED)
         {
             load_balance--;
-            //printf("I am Yielding %u \n", MTH->current->tcb->tid);
-             enqueue(MTH->current, MTH->ready);
+            // printf("I am Yielding %u \n", MTH->current->tcb->tid);
+            resetExecTime(MTH->current->tcb);
+            enqueue(MTH->current, MTH->ready);
         }
         else if (signum == BLOCKED)
         {
             load_balance--;
+            resetExecTime(MTH->current->tcb);
             //printf("Blocking Thread %u \n",MTH->current->tcb->tid);
             enqueue(MTH->current, MTH->blocked);
             // //printQueue(MTH->blocked);
@@ -117,17 +131,31 @@ static void schedule(int signum)
         if (isEmpty(MTH->running) || load_balance <= 0)
         {
             load_balance = 10;
-            sched_PSJF();
-            //sched_RR();
+            sched_MLFQ();
+            // sched_PSJF();
+            // sched_RR();
             //printf("out of shceduler \n");
-            if(isEmpty(MTH->running)){
-                //printf("No More threads to run \n");
+            if(isEmpty(MTH->running) && isEmpty(MTH->medium) && isEmpty(MTH->low)){
+                // printf("No More threads to run \n");
                 //printCurrSchedulerState();
                 exit(0);
             }
             
         }
-        next_thread = dequeue(MTH->running);
+        if(peek(MTH->running) != NULL){
+            next_thread = dequeue(MTH->running);
+        }
+        else if(peek(MTH->medium) != NULL){
+            next_thread = dequeue(MTH->medium);
+        }
+        else if(peek(MTH->low) != NULL){
+            next_thread = dequeue(MTH->low);
+        }
+        else{
+            printf("\nThere were no threads in any queue");
+            exit(0);
+        }
+        
  
 
         ////printf("Next up is %u \n", next_thread->tcb->tid);
@@ -361,6 +389,59 @@ void handleBlockedQueue(){
             }
 }
 
+void sched_MLFQ() {
+            //printf("Scheduler Called\n");
+            //printf("in scheduler \n");
+            //printCurrSchedulerState(); //Prints State
+            handleBlockedQueue(); //Checks Blocked Queue For Joins
+
+            // handler high -> medium
+            tcb_node *run_prev, *run_node = MTH->ready->front;
+            int sort_counter = 0;
+            while(run_node && sort_counter < MTH->ready->size){
+                run_prev = run_node;
+                if(run_node->tcb->total_exec >= MEDIUM_EXEC_TIMEOUT){
+                    enqueue(searchQueueAndRemove(MTH->ready, run_node->tcb->tid), MTH->medium);
+                }
+                if(run_prev != run_node){
+                    run_node = run_prev->next;
+                }
+                else{
+                    run_node = run_node->next;
+                }
+                sort_counter++;
+            }
+
+            tcb_node *med_prev, *med_node = MTH->ready->front;
+            sort_counter = 0;
+            while(med_node && sort_counter < MTH->medium->size){
+                med_prev = med_node;
+                if(med_node->tcb->total_exec >= MEDIUM_EXEC_TIMEOUT){
+                    enqueue(searchQueueAndRemove(MTH->medium, med_node->tcb->tid), MTH->low);
+                }
+                if(med_prev != med_node){
+                    med_node = med_prev->next;
+                }
+                else{
+                    med_node = med_node->next;
+                }
+                sort_counter++;
+            }
+
+            if (!isEmpty(MTH->ready))
+            {
+                //printf("transferQueue time baby\n");
+                transferQueueSJF(MTH->ready, MTH->running);
+                //printf("Done Transfering\n");
+            }
+
+            // No need for low as it will be FCFS
+
+
+            //printf("Scheduler is done\n");
+            //printCurrSchedulerState();
+
+}
 
 
 
@@ -376,6 +457,7 @@ void sched_PSJF() {
                 transferQueueSJF(MTH->ready, MTH->running);
                 //printf("Done Transfering\n");
             }
+
             //printf("Scheduler is done\n");
             //printCurrSchedulerState();
 

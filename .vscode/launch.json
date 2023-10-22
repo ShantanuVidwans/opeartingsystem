@@ -9,7 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/A0/benchmarks/bm3",
-            "args": ["200"],
+            "args": ["20"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
             "environment": [],
