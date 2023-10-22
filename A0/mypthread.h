@@ -59,10 +59,9 @@ typedef struct threadControlBlock
   funcptr func_ptr;
   void* arg;
   ucontext_t* t_context; // context
-  t_state state; // state
   clock_t start_exec; // started execution time
   double total_exec; // total_execution time
-  mypthread_t join_id; // parent thread
+  mypthread_t join_id; // join into which thread
 } tcb;
 
 typedef struct _TCBNODE {
@@ -113,12 +112,6 @@ typedef struct _MUTEXNODE
   mutex_node* next; 
     
 }mutex_node;
-
-typedef struct _MutexHandler {
-    mutex_node* mutexList;
-    unsigned int mutex_size;
-
-} MH;
 
 
 

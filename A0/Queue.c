@@ -152,11 +152,19 @@ int insertAtEnd(tcb_node *tcb, tcb_queue *q) {
     tcb_node *p = q->front;
     q->size = q->size+1;
     // point it to old first node
+
+    if(p == NULL){
+        q->front = tcb;
+        tcb->next = NULL;
+        return 0;
+    }
+
     while (p->next != NULL)
         p = p->next;
 
     //point first to new first node
     p->next = tcb;
+    tcb->next = NULL;
 
 }
 
@@ -177,10 +185,6 @@ tcb_node *searchQueue(tcb_queue *q, mypthread_t tid) {
 
 tcb_node *searchQueueAndRemove(tcb_queue *q, mypthread_t tid) {
 
-    if(tid == -1){
-        printf("THREAD HERE THAT SHOULDNT BE\n");
-        return NULL;
-    }
     tcb_node *temp = q->front;
     tcb_node *prev = NULL;
 
@@ -189,7 +193,8 @@ tcb_node *searchQueueAndRemove(tcb_queue *q, mypthread_t tid) {
 
     if (temp != NULL && temp->tcb->tid == tid) {
         q->front = temp->next;
-        q->size = q->size-1;
+        q->size--;
+        temp->next = NULL;
         return temp;
     }
 
@@ -203,7 +208,8 @@ tcb_node *searchQueueAndRemove(tcb_queue *q, mypthread_t tid) {
     }
 
     prev->next = temp->next;
-    q->size = q->size-1;
+    q->size--;
+    temp->next = NULL;
     return temp;
 }
 
