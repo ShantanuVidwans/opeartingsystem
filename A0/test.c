@@ -5,7 +5,7 @@
 #include "./mypthread.c"
 
 #define DEFAULT_THREAD_NUM 2
-#define VECTOR_SIZE 300000
+#define VECTOR_SIZE 30000
 
 /* Global variables */
 pthread_mutex_t mutex;
@@ -106,74 +106,147 @@ int main(int argc, char **argv) {
 // #include "./mypthread.c"
 
 
-// int fib(int i){
-//     if (i == 0){
-//         return 0;
-//     }
-//     if (i == 1){
-//         return 1;
-//     }
-    
-//     return fib(i-1) + fib(i-2);
-
+// tcb *setupThreadTest(double total_exec)
+// {
+//     tcb *t = (tcb *)malloc(sizeof(tcb));
+//     t->tid = rand();
+//     t->priority = HIGH;
+//     t->name = NULL;
+//     t->t_retval = NULL;
+//     t->t_context = NULL;
+//     t->start_exec = clock();
+//     t->total_exec = total_exec;
+//     t->state = RUNNING;
+//     t->join_id = 0; // parent thread
+//     return t;
 // }
 
-// void vector_multiply(void* arg) {
-//     int i = 0;
-//     int n = *((int*) arg);
-    
-//     for (i = n; i < VECTOR_SIZE; i += thread_num) {
-//         pthread_mutex_lock(&mutex);
-//         res += r[i] * s[i];
-//         pthread_mutex_unlock(&mutex);   
-//     }
-
-//     pthread_exit(NULL);
-// }
-
-// pthread_t *thread;
+// tcb *thread1;
+// tcb *thread2;
+// tcb *thread3;
+// tcb *thread4;
+// tcb *thread5;
+// tcb *thread6;
+// tcb *thread7;
+// tcb *thread8;
 // int main(int argc, char **argv) {
-//     mypthread_mutex_t   mutex;
-//     mypthread_t tid1;
-//     mypthread_t tid2;
-//     mypthread_t tid3;
+//     struct _TCBQUEUE* ready = createQueue("Ready Queue");  
+//     struct _TCBQUEUE* running = createQueue("Running queue");
 
-//     int variable;
-//     int *ptr = &variable;
-//     *ptr = 1;
+//     // //Test 1;
+//     // printf("|^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^|\n");
+//     // thread8 = setupThreadTest(0);
+//     // enqueue(createTCBNode(thread8), ready);
+//     // printf("Before Transfer SINGLE ITEM TO EMPTY[\n");
+//     // printQueueTime(ready);
+//     // printQueueTime(running);
+//     // printf("---------------------------------\n");
+//     // transferQueueSJF(ready, running);
+//     // printf("---------------------------------\n");
+//     // printQueueTime(ready);
+//     // printQueueTime(running);
+//     // printf("After Transfer SINGLE ITEM TO EMPTy]\n");
+//     // printf("|vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv|\n");
 
-//     int variable2;
-//     int *ptr2 = &variable2;
-//     *ptr2 = 10;
+//     // //Test 2
+//     // printf("|^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^|\n");
+//     // thread1 = setupThreadTest(0);
+//     // thread2 = setupThreadTest(5);
+//     // thread3 = setupThreadTest(0);
+//     // thread4 = setupThreadTest(2);
+//     // thread5 = setupThreadTest(0);
+//     // thread6 = setupThreadTest(1);
+//     // thread7 = setupThreadTest(0);
 
-//     int variable3;
-//     int *ptr3 = &variable3;
-//     *ptr3 = 30;
-//     pthread_mutex_init(&mutex, NULL);
-//     int* size_ret1 = (int*) malloc(sizeof(int));
-//     int* size_ret2 = (int*) malloc(sizeof(int));
-//     int* size_ret3 = (int*) malloc(sizeof(int));
-//     int thread_num = 10;
-//     int i = 0;
-//     thread = (mypthread_t*)malloc(thread_num*sizeof(mypthread_t));
-//     for (i = 0; i < thread_num; i++){
-        
-//         mypthread_create(&thread[i],  NULL, vector_multiply, ptr3);
-//         printf("Created %u\n", thread[i]);
-        
-//     }
+//     // enqueue(createTCBNode(thread1), ready);
+//     // enqueue(createTCBNode(thread2), ready);
+//     // enqueue(createTCBNode(thread3), ready);
+//     // enqueue(createTCBNode(thread4), ready);
+//     // enqueue(createTCBNode(thread5), ready);
+//     // enqueue(createTCBNode(thread6), ready);
+//     // enqueue(createTCBNode(thread7), ready);
+//     // printf("Before Transfer FULL OUT OF ORDER TO EMPTY[\n");
+//     // printQueueTime(ready);
+//     // printQueueTime(running);
+//     // printf("---------------------------------\n");
+//     // transferQueueSJF(ready, running);
+//     // printf("---------------------------------\n");
+//     // printQueueTime(ready);
+//     // printQueueTime(running);
+//     // printf("After Transfer FULL OUT OF ORDER TO EMPTY]\n");
+//     // printf("|vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv|\n");
 
-//     for (i = 0; i < thread_num; i++){
-//         mypthread_join(thread[i], NULL);
-//         printf(" got value from thread %u\n", thread[i]);
-//     }
 
-//     printf("Queues\n");
-//     printQueue(MTH->ready);
-//     printQueue(MTH->running);
-//     printQueue(MTH->blocked);
-//     printQueue(MTH->terminated);
-    
+//     //Test 3
+//     // printf("|^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^|\n");
+//     // thread1 = setupThreadTest(0);
+//     // thread2 = setupThreadTest(5);
+//     // thread3 = setupThreadTest(0);
+//     // thread4 = setupThreadTest(2);
+//     // thread5 = setupThreadTest(0);
+//     // thread6 = setupThreadTest(1);
+//     // thread7 = setupThreadTest(0);
+
+//     // enqueue(createTCBNode(thread1), ready);
+//     // enqueue(createTCBNode(thread2), ready);
+//     // enqueue(createTCBNode(thread3), ready);
+//     // enqueue(createTCBNode(thread4), running);
+//     // enqueue(createTCBNode(thread5), ready);
+//     // enqueue(createTCBNode(thread6), running);
+//     // enqueue(createTCBNode(thread7), ready);
+//     // printf("Before Transfer FULL OUT OF ORDER TO ORDERED[\n");
+//     // printQueueTime(ready);
+//     // printQueueTime(running);
+//     // printf("---------------------------------\n");
+//     // transferQueueSJF(ready, running);
+//     // printf("---------------------------------\n");
+//     // printQueueTime(ready);
+//     // printQueueTime(running);
+//     // printf("After Transfer FULL OUT OF ORDER TO ORDERED]\n");
+//     // printf("|vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv|\n");
+
+
+
+//       //Test 3
+//     printf("|^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^|\n");
+//     thread1 = setupThreadTest(0);
+//     thread2 = setupThreadTest(5);
+//     thread3 = setupThreadTest(0);
+//     thread4 = setupThreadTest(2);
+//     thread5 = setupThreadTest(0);
+//     thread6 = setupThreadTest(1);
+//     thread7 = setupThreadTest(0);
+
+//     enqueue(createTCBNode(thread1), ready);
+//     enqueue(createTCBNode(thread4), running);
+//     enqueue(createTCBNode(thread5), ready);
+//     enqueue(createTCBNode(thread6), running);
+//     enqueue(createTCBNode(thread7), ready);
+//     printf("Before Transfer FULL OUT OF ORDER TO ORDERED[\n");
+//     printQueueTime(ready);
+//     printQueueTime(running);
+//     printf("---------------------------------\n");
+//     transferQueueSJF(ready, running);
+//     printf("---------------------------------\n");
+//     printQueueTime(ready);
+//     printQueueTime(running);
+//     printf("After Transfer FULL OUT OF ORDER TO ORDERED]\n");
+//     enqueue(createTCBNode(thread2), ready);
+//     enqueue(createTCBNode(thread3), ready);
+//     printf("Before Transfer PARTIAL OF ORDER TO ORDERED[\n");
+//     printQueueTime(ready);
+//     printQueueTime(running);
+//     printf("---------------------------------\n");
+//     transferQueueSJF(ready, running);
+//     printf("---------------------------------\n");
+//     printQueueTime(ready);
+//     printQueueTime(running);
+//     printf("After Transfer PARTIAL OF ORDER TO ORDERED]\n");
+//     printf("|vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv|\n");
+
+
+
+
 //     printf("\n____________________DONE___________________\n");
 // }
 

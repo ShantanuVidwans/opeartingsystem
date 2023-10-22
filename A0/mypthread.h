@@ -60,8 +60,8 @@ typedef struct threadControlBlock
   void* arg;
   ucontext_t* t_context; // context
   t_state state; // state
-  struct timespec start_exec; // started execution time
-  struct timespec total_exec; // total_execution time
+  clock_t start_exec; // started execution time
+  double total_exec; // total_execution time
   mypthread_t join_id; // parent thread
 } tcb;
 
@@ -185,8 +185,8 @@ int mypthread_mutex_destroy(mypthread_mutex_t *mutex);
 
 
 #define HIGH_EXEC_TIMEOUT 50
-#define MEDIUM_EXEC_TIMEOUT 180
-#define LOW_EXEC_TIMEOUT 270
+#define MEDIUM_EXEC_TIMEOUT 150
+#define LOW_EXEC_TIMEOUT 300
 #define T_STACK_SIZE 1048576
 
 #ifdef USE_MYTHREAD
