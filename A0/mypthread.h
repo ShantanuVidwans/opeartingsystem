@@ -38,6 +38,8 @@ typedef enum t_state{
   MUTEX_UNLOCKED,
   BLOCKED,
   TERMINATED,
+  SCHEDULER_RET,
+  KEEP_RUNNING,
 }t_state;
 
 typedef enum _mode {
@@ -70,6 +72,7 @@ typedef struct _TCBNODE {
 
 typedef struct _TCBQUEUE {
    char* name;
+   int size;
   struct _TCBNODE* front;
 } tcb_queue;
 
@@ -180,9 +183,10 @@ int mypthread_mutex_destroy(mypthread_mutex_t *mutex);
 
 
 
-#define HIGH_EXEC_TIMEOUT 30
-#define MEDIUM_EXEC_TIMEOUT 60
-#define LOW_EXEC_TIMEOUT 90
+
+#define HIGH_EXEC_TIMEOUT 50
+#define MEDIUM_EXEC_TIMEOUT 180
+#define LOW_EXEC_TIMEOUT 270
 #define T_STACK_SIZE 1048576
 
 #ifdef USE_MYTHREAD

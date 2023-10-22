@@ -2,8 +2,15 @@
 #define QUEUE_H
 
 // Queue Code...................................................................................
+
+
+
+int checkAllQueuesAreEmpty(TH* MH) {
+    return (MH->running->size + MH->medium->size + MH->low->size + MH->ready->size + MH->resource->size + MH->blocked->size + MH->terminated->size) == 1;
+}
+
 void printQueue(tcb_queue* q){
-    printf("\nprinting queue %s:", q->name);
+    printf("\nprinting queue %s size = %u:", q->name, q->size);
     tcb_node *p = q->front;
     printf("[");
 
@@ -28,11 +35,12 @@ void enqueue(tcb_node *tcb, tcb_queue *q) {
         return;
     tcb->next = q->front;
     q->front = tcb;
-
+    q->size++;
+    return;
 }
 
 int isEmpty(tcb_queue *q) {
-    return (q->front == NULL);
+    return q->front == NULL;
 }
 
 tcb_node *dequeue(tcb_queue *q) {
@@ -43,43 +51,41 @@ tcb_node *dequeue(tcb_queue *q) {
     // Store previous front and move front one node ahead
     tcb_node *temp = q->front;
 
-
+    q->size--;
     q->front = q->front->next;
-
     temp->next = NULL; //IMPORTANT
-
     return temp;
 }
 
 tcb *peek(tcb_queue *q) {
-    if (q->front != NULL)
+    if (q->front != NULL) {
         return q->front->tcb;
+    }
     return NULL;
 }
 
 
 int transferQueue(tcb_queue *source, tcb_queue *destination) {
-    // printf("transfering source PRE:");
-    // printQueue(source);
-    // printf("transfering destination PRE:");
-    // printQueue(destination);
-    while (!isEmpty(source)) {
+   // printf("transfering source PRE:\n");
+    //printQueue(source);
+   // printf("transfering destination PRE:\n");
+   //printQueue(destination);
 
-        tcb_node *temp = dequeue(source);
-        if (temp != NULL)
-            enqueue(temp, destination);
-    }
 
-    // printf("transfering source POST:");
-    // printQueue(source);
-    // printf("transfering destination POST:");
+    tcb_node *tran = NULL;
+    do{
+       tran = dequeue(source);
+        if (tran != NULL)
+            enqueue(tran, destination);
+    } while (tran != NULL);
+    //printf("transfering destination POST:\n");
     // printQueue(destination);
     return 0;
 }
 
 int insertAtEnd(tcb_node *tcb, tcb_queue *q) {
     tcb_node *p = q->front;
-
+    q->size = q->size+1;
     // point it to old first node
     while (p->next != NULL)
         p = p->next;
@@ -104,8 +110,17 @@ tcb_node *searchQueue(tcb_queue *q, mypthread_t tid) {
     return NULL;
 }
 
+// mutex_node* searchMutexs(mutex_node* mutex_list, mypthread_t tid){
+    
+// }
+
+
 tcb_node *searchQueueAndRemove(tcb_queue *q, mypthread_t tid) {
 
+    if(tid == -1){
+        printf("THREAD HERE THAT SHOULDNT BE\n");
+        return NULL;
+    }
     tcb_node *temp = q->front;
     tcb_node *prev = NULL;
 
@@ -114,6 +129,7 @@ tcb_node *searchQueueAndRemove(tcb_queue *q, mypthread_t tid) {
 
     if (temp != NULL && temp->tcb->tid == tid) {
         q->front = temp->next;
+        q->size = q->size-1;
         return temp;
     }
 
@@ -127,7 +143,7 @@ tcb_node *searchQueueAndRemove(tcb_queue *q, mypthread_t tid) {
     }
 
     prev->next = temp->next;
-
+    q->size = q->size-1;
     return temp;
 }
 
@@ -146,6 +162,7 @@ tcb_queue *createQueue(char *name) {
     tcb_queue *q
             = (tcb_queue *) malloc(sizeof(tcb_queue));
     q->name = name;
+    q->size = 0;
     q->front = NULL;
     return q;
 }
