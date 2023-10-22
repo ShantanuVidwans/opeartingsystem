@@ -117,7 +117,7 @@ void sortedEnqueue(tcb_node *controlBlockNode, tcb_queue *q, comparator cmp) {
 }
 
 int compareByTime(tcb_node* a, tcb_node* b){
-    return a->tcb->total_exec >= b->tcb->total_exec;
+    return a->tcb->total_exec > b->tcb->total_exec;
 }
 
 
@@ -132,16 +132,11 @@ int transferQueueSJF(tcb_queue *source, tcb_queue *destination) {
 
     } while (tran != NULL);
     
-    // printQueue(destination);
     return 0;
 }
 
 
 int transferQueue(tcb_queue *source, tcb_queue *destination) {
-   // printf("transfering source PRE:\n");
-    //printQueue(source);
-   // printf("transfering destination PRE:\n");
-   //printQueue(destination);
 
 
     tcb_node *tran = NULL;
@@ -150,8 +145,6 @@ int transferQueue(tcb_queue *source, tcb_queue *destination) {
         if (tran != NULL)
             enqueue(tran, destination);
     } while (tran != NULL);
-    //printf("transfering destination POST:\n");
-    // printQueue(destination);
     return 0;
 }
 
@@ -181,11 +174,6 @@ tcb_node *searchQueue(tcb_queue *q, mypthread_t tid) {
     }
     return NULL;
 }
-
-// mutex_node* searchMutexs(mutex_node* mutex_list, mypthread_t tid){
-
-// }
-
 
 tcb_node *searchQueueAndRemove(tcb_queue *q, mypthread_t tid) {
 
@@ -229,7 +217,6 @@ int swapQueues(tcb_queue *source, tcb_queue *destination, mypthread_t tid) {
     return 0;
 }
 
-// Some code ........................................
 tcb_queue *createQueue(char *name) {
     tcb_queue *q
             = (tcb_queue *) malloc(sizeof(tcb_queue));
