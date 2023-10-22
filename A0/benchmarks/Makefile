@@ -21,7 +21,7 @@ bm2:
 bm3:
 	$(CC) $(CFLAGS) -pthread -o bm3 benchmark3.c -L../ -lmypthread
 
-bm3:
+bm4:
 	$(CC) $(CFLAGS) -pthread -o bm4 benchmark4.c -L../ -lmypthread
 
 test:

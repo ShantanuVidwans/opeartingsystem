@@ -214,8 +214,8 @@ int main(int argc, char **argv) {
     thread_num = 2;
 
     if(argc > 1){
-		if(atoi(argv[2]) == 0 || atoi(argv[2]) == 1 || atoi(argv[2]) == 2)
-		setScheduler(atoi(argv[2]));
+		if(atoi(argv[1]) == 0 || atoi(argv[1]) == 1 || atoi(argv[1]) == 2)
+		setScheduler(atoi(argv[1]));
 	else 
 		printf("\nPlease select the correct scheduler mode");
 	}
