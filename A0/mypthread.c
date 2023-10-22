@@ -17,6 +17,9 @@ void disableTimer();
 void printCurrSchedulerState();
 void sched_PSJF();
 
+
+void updatePriority(tcb_node* node, int change);
+
 // Global Vars
 unsigned int s_tid = 0;  // scheduler id
 TH *MTH = NULL;          // scheduler
@@ -558,4 +561,48 @@ tcb *setupThread(ucontext_t *context, mypthread_t join_id)
     t->state = RUNNING;
     t->join_id = join_id; // parent thread
     return t;
+}
+
+void resetPriority(tcb_node* node){
+    if(node == NULL){
+        perror("Trying to change priority on null node");
+        return;
+    }
+    node->tcb->priority = LOW;
+}
+
+void updatePriority(tcb_node* node, int change){
+    if(node == NULL){
+        perror("Trying to change priority on null node");
+        return;
+    }
+    if(change != 1 ||change != -1){
+        perror("Trying to change priority by a value greater than one dont use this method");
+        return;
+    }
+
+    t_priority currPri = node->tcb->priority;
+    switch(currPri){
+        LOW:
+            if(change == 1)
+                node->tcb->priority = MED;
+
+            if(change == -1)
+                node->tcb->priority = LOW;
+            break;
+        MED:
+            if(change == 1)
+                node->tcb->priority = HIGH;
+
+            if(change == -1)
+                node->tcb->priority = LOW;
+            break;
+        HIGH:
+            if(change == 1)
+                node->tcb->priority = HIGH;
+
+            if(change == -1)
+                node->tcb->priority = MED;
+            break;
+    }
 }

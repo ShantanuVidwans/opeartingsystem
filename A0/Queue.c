@@ -2,7 +2,7 @@
 #define QUEUE_H
 
 // Queue Code...................................................................................
-
+typedef int (*comparator)(tcb_node*,tcb_node*);
 
 
 int checkAllQueuesAreEmpty(TH* MH) {
@@ -78,7 +78,7 @@ tcb *peek(tcb_queue *q) {
     return NULL;
 }
 
-void sortedEnqueue(tcb_node *controlBlockNode, tcb_queue *q) {
+void sortedEnqueue(tcb_node *controlBlockNode, tcb_queue *q, comparator cmp) {
     tcb_node* curr = q-> front;
     tcb_node* pre = q->front;
 
@@ -98,7 +98,7 @@ void sortedEnqueue(tcb_node *controlBlockNode, tcb_queue *q) {
     }
         
     while (curr != NULL) {
-        if(curr->tcb->total_exec >= controlBlockNode->tcb->total_exec ){
+        if(cmp(curr, controlBlockNode)){
             pre->next = controlBlockNode;
             controlBlockNode->next = curr;
             q->size++;
@@ -116,16 +116,19 @@ void sortedEnqueue(tcb_node *controlBlockNode, tcb_queue *q) {
     return;
 }
 
+int compareByTime(tcb_node* a, tcb_node* b){
+    return a->tcb->total_exec >= b->tcb->total_exec;
+}
 
 
 int transferQueueSJF(tcb_queue *source, tcb_queue *destination) {
 
     tcb_node *tran = NULL;
     do{
-        
+
        tran = dequeue(source);
         if (tran != NULL) 
-            sortedEnqueue(tran, destination);
+            sortedEnqueue(tran, destination, &compareByTime);
 
     } while (tran != NULL);
     
