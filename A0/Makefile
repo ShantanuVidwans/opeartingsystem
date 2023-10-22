@@ -9,7 +9,7 @@ all: mypthread.a
 
 mypthread.a: mypthread.o
 	$(AR) libmypthread.a mypthread.o
-	$(RANLIB) libmypthread.a
+	$(RANLIB) libmypthread.aa
 	$(CC) test.c
 
 mypthread.o: mypthread.h
