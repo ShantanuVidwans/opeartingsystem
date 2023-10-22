@@ -17,6 +17,8 @@ void sched_RR();
 void sched_PSJF();
 void sched_MLFQ();
 
+void (*current_scheduler)(void) = sched_PSJF;
+
 
 void updatePriority(tcb_node* node, int change);
 
@@ -38,6 +40,27 @@ atomic_flag lock = ATOMIC_FLAG_INIT;
 uint id_start = 2;
 _Bool lockOld;
 
+void setScheduler(mode scheduler_mode){
+    switch (scheduler_mode){
+        case RR:
+            printf("\nUsing RR Scheduler\n");
+            current_scheduler = sched_RR;
+            break;
+        case PSJF:
+            printf("\nUsing PSJF Scheduler\n");
+            current_scheduler = sched_PSJF;
+            break;
+        case MLFQ:
+            printf("\nUsing MLFQ Scheduler\n");
+            current_scheduler = sched_MLFQ;
+            break;
+        default:
+            printf("\nUsing Default PSJF Scheduler\n");
+            current_scheduler = sched_PSJF;
+            break;
+    }
+}
+
 void *executeThread()
 {
     void *val = MTH->current->tcb->func_ptr(MTH->current->tcb->arg);
@@ -57,7 +80,7 @@ void calcAndAddExecTime(tcb* tcb){
     //  printf("\nTiming: Current Thread = %u\n", MTH->current->tcb->tid);
     clock_t end = clock(); //Get Time
     double execTime = (double)(end - tcb->start_exec) / (CLOCKS_PER_SEC); //Get Time per sec divide by 1000 to get ms
-    tcb->total_exec = tcb->total_exec + (execTime * 1000 * 1000); //Append time
+    tcb->total_exec = tcb->total_exec + (execTime * 1000); //Append time
     // printf("EXEC TIME = %f\n",tcb->total_exec);
 
 }
@@ -132,9 +155,7 @@ static void schedule(int signum)
         if (isEmpty(MTH->running) || load_balance <= 0)
         {
             load_balance = 10;
-            sched_MLFQ();
-            // sched_PSJF();
-            // sched_RR();
+            current_scheduler();
             //printf("out of shceduler \n");
             if(isEmpty(MTH->running) && isEmpty(MTH->medium) && isEmpty(MTH->low)){
                 // printf("No More threads to run \n");
@@ -421,7 +442,7 @@ void sched_MLFQ() {
             sort_counter = 0;
             while(med_node && sort_counter < MTH->medium->size){
                 med_prev = med_node;
-                if(med_node->tcb->total_exec >= MEDIUM_EXEC_TIMEOUT){
+                if(med_node->tcb->total_exec >= LOW_EXEC_TIMEOUT){
                     med_node->tcb->priority = LOW;
                     enqueue(searchQueueAndRemove(MTH->medium, med_node->tcb->tid), MTH->low);
                 }

@@ -19,7 +19,7 @@ long turnaround_total = 0;
 void T1(struct timespec *start) {
 	// printf("\nT1");
 	struct timespec end;
-	for(long i=0; i < 685000000; i++) continue;
+	for(long i=0; i < 48500000; i++) continue;
 	clock_gettime(CLOCK_REALTIME, &end);
 	turnaround_total += (long)(end.tv_sec - start->tv_sec) * 1000 + (end.tv_nsec - start->tv_nsec) / 1000000;
 }
@@ -27,7 +27,7 @@ void T1(struct timespec *start) {
 // The for loop is tuned to be ~10000ms
 void T2(struct timespec *start){
 	struct timespec end;
-	for(long i=0; i < 6850000000; i++) continue;
+	for(long i=0; i < 3850000000; i++) continue;
 		clock_gettime(CLOCK_REALTIME, &end);
         printf("T2 running time: %lu micro-seconds\n", 
 	       (end.tv_sec - start->tv_sec) * 1000 + (end.tv_nsec - start->tv_nsec) / 1000000);
@@ -40,6 +40,15 @@ int main(int argc, char **argv) {
 			return 0;
 	} else {
 			thread_num = atoi(argv[1]);
+	}
+	if(argc > 2){
+		if(atoi(argv[2]) == 0 || atoi(argv[2]) == 1 || atoi(argv[2]) == 2)
+		setScheduler(atoi(argv[2]));
+	else 
+		printf("\nPlease select the correct scheduler mode");
+	}
+	else{
+		setScheduler(-1);
 	}
 	// initialize pthread_t
 	thread = (pthread_t*)malloc(thread_num*sizeof(pthread_t));

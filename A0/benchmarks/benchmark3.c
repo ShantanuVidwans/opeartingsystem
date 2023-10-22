@@ -41,6 +41,17 @@ int main(int argc, char **argv) {
 	} else {
 			num_api_calls = atoi(argv[1]);
 	}
+
+		if(argc > 2){
+		if(atoi(argv[2]) == 0 || atoi(argv[2]) == 1 || atoi(argv[2]) == 2)
+		setScheduler(atoi(argv[2]));
+	else 
+		printf("\nPlease select the correct scheduler mode");
+	}
+	else{
+		setScheduler(-1);
+	}
+	
 	// initialize pthread_t
 	thread = (pthread_t*)malloc(num_api_calls*sizeof(pthread_t));
 
