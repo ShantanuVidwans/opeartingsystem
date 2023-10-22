@@ -84,12 +84,12 @@ static void schedule(int signum)
             if(MTH->current->tcb->tid == 0){
                 return;
             }
-            if(MTH->current->tcb->total_exec > MEDIUM_EXEC_TIMEOUT){
-                // printf("\nHigh Exec Thread Detected");
-            }
+            // if(MTH->current->tcb->total_exec > MEDIUM_EXEC_TIMEOUT){
+            //     printf("\nHigh Exec Thread Detected");
+            // }
             if(MTH->current->tcb->priority = HIGH)
                 enqueue(MTH->current, MTH->ready);
-            else if(MTH->current->tcb->priority = MED)
+            else if(MTH->current->tcb->priority = MED)                
                 enqueue(MTH->current, MTH->medium);
             else if(MTH->current->tcb->priority = LOW)
                 enqueue(MTH->current, MTH->low);
@@ -106,20 +106,21 @@ static void schedule(int signum)
             load_balance--;
             // printf("I am Yielding %u \n", MTH->current->tcb->tid);
             resetExecTime(MTH->current->tcb);
+            // MTH->current->tcb->priority = HIGH;
             enqueue(MTH->current, MTH->ready);
         }
         else if (signum == BLOCKED)
         {
             load_balance--;
             resetExecTime(MTH->current->tcb);
-            //printf("Blocking Thread %u \n",MTH->current->tcb->tid);
+            // printf("Blocking Thread %u \n",MTH->current->tcb->tid);
             enqueue(MTH->current, MTH->blocked);
-            // //printQueue(MTH->blocked);
+            //printQueue(MTH->blocked);
         }
         else if (signum == TERMINATED)
         {
             load_balance--;
-            //printf("exiting thread %u \n",MTH->current->tcb->tid);
+            // printf("exiting thread %u \n",MTH->current->tcb->tid);
             enqueue(MTH->current, MTH->terminated);
             //printQueue(MTH->terminated);
         }
@@ -143,12 +144,15 @@ static void schedule(int signum)
             
         }
         if(peek(MTH->running) != NULL){
+            // printf("\nTaking from Running");
             next_thread = dequeue(MTH->running);
         }
         else if(peek(MTH->medium) != NULL){
+            // printf("\nTaking from Medium");
             next_thread = dequeue(MTH->medium);
         }
         else if(peek(MTH->low) != NULL){
+            // printf("\nTaking from Low");
             next_thread = dequeue(MTH->low);
         }
         else{
@@ -220,7 +224,6 @@ int startScheduler()
 {
     if (MTH == NULL)
     {
-
         MTH = (TH *)malloc(sizeof(TH));
         initializeTH(MTH); // Setup the MTH's queues
         setHandler();
@@ -264,6 +267,7 @@ int mypthread_create(mypthread_t *thread, pthread_attr_t *attr, void *(*function
             tcb *new_thread = setupThread(thread_context, -1);
             new_thread->func_ptr = function;
             new_thread->arg = arg;
+            new_thread->priority = HIGH;
             enqueue(createTCBNode(new_thread), MTH->ready);
 
             *thread = new_thread->tid;
@@ -401,6 +405,7 @@ void sched_MLFQ() {
             while(run_node && sort_counter < MTH->ready->size){
                 run_prev = run_node;
                 if(run_node->tcb->total_exec >= MEDIUM_EXEC_TIMEOUT){
+                    run_node->tcb->priority = MED;
                     enqueue(searchQueueAndRemove(MTH->ready, run_node->tcb->tid), MTH->medium);
                 }
                 if(run_prev != run_node){
@@ -412,11 +417,12 @@ void sched_MLFQ() {
                 sort_counter++;
             }
 
-            tcb_node *med_prev, *med_node = MTH->ready->front;
+            tcb_node *med_prev, *med_node = MTH->medium->front;
             sort_counter = 0;
             while(med_node && sort_counter < MTH->medium->size){
                 med_prev = med_node;
                 if(med_node->tcb->total_exec >= MEDIUM_EXEC_TIMEOUT){
+                    med_node->tcb->priority = LOW;
                     enqueue(searchQueueAndRemove(MTH->medium, med_node->tcb->tid), MTH->low);
                 }
                 if(med_prev != med_node){

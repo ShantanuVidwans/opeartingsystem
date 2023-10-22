@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -g -w
 
-all:: parallel_cal vector_multiply external_cal bm1 bm2 bm3 test
+all:: parallel_cal vector_multiply external_cal bm1 bm2 bm3 bm4 test
 
 parallel_cal:
 	$(CC) $(CFLAGS) -pthread -o parallel_cal parallel_cal.c -L../ -lmypthread
@@ -21,8 +21,11 @@ bm2:
 bm3:
 	$(CC) $(CFLAGS) -pthread -o bm3 benchmark3.c -L../ -lmypthread
 
+bm3:
+	$(CC) $(CFLAGS) -pthread -o bm4 benchmark4.c -L../ -lmypthread
+
 test:
 	$(CC) $(CFLAGS) -pthread -o test test.c -L../ -lmypthread
 
 clean:
-	rm -rf testcase test parallel_cal vector_multiply external_cal bm1 bm2 bm3 *.o
+	rm -rf testcase test parallel_cal vector_multiply external_cal bm1 bm2 bm3 bm4 *.o
