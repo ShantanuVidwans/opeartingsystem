@@ -23,6 +23,20 @@ void printQueue(tcb_queue* q){
     return;
 }
 
+void printQueueTime(tcb_queue* q){
+    printf("\nprinting queue %s size = %u:", q->name, q->size);
+    tcb_node *p = q->front;
+    printf("[");
+
+    //start from the beginning
+    while(p != NULL) {
+        printf(" %f ",p->tcb->total_exec);
+        p = p->next;
+    }
+    printf("]\n");
+    return;
+}
+
 tcb_node *createTCBNode(tcb *tcb) {
     tcb_node *new_node = (tcb_node *) malloc(sizeof(tcb_node));
     new_node->tcb = tcb;
@@ -62,6 +76,61 @@ tcb *peek(tcb_queue *q) {
         return q->front->tcb;
     }
     return NULL;
+}
+
+void sortedEnqueue(tcb_node *controlBlockNode, tcb_queue *q) {
+    tcb_node* curr = q-> front;
+    tcb_node* pre = q->front;
+
+    if (controlBlockNode == NULL)
+        return;
+
+    //Empty Q put it in front;
+    if (q->front == NULL) {
+        enqueue(controlBlockNode, q);
+        return;
+    }
+
+    if (q->front->tcb->total_exec >= controlBlockNode->tcb->total_exec){
+        controlBlockNode->next = q->front;
+        q->front = controlBlockNode;
+        return;
+    }
+        
+    while (curr != NULL) {
+        if(curr->tcb->total_exec >= controlBlockNode->tcb->total_exec ){
+            pre->next = controlBlockNode;
+            controlBlockNode->next = curr;
+            q->size++;
+            return;
+        }
+        pre = curr;
+        curr = curr->next;
+    }
+    
+    
+    pre->next = controlBlockNode;
+    controlBlockNode->next = NULL;
+    q->size++;
+
+    return;
+}
+
+
+
+int transferQueueSJF(tcb_queue *source, tcb_queue *destination) {
+
+    tcb_node *tran = NULL;
+    do{
+        
+       tran = dequeue(source);
+        if (tran != NULL) 
+            sortedEnqueue(tran, destination);
+
+    } while (tran != NULL);
+    
+    // printQueue(destination);
+    return 0;
 }
 
 
@@ -111,7 +180,7 @@ tcb_node *searchQueue(tcb_queue *q, mypthread_t tid) {
 }
 
 // mutex_node* searchMutexs(mutex_node* mutex_list, mypthread_t tid){
-    
+
 // }
 
 
